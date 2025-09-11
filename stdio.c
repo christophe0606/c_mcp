@@ -4,12 +4,13 @@
 
 static char *line = NULL;
 
-void init_stdio()
+int init_stdio()
 {
     // No stdout noise — only valid MCP messages on stdout.
     setvbuf(stdout, NULL, _IONBF, 0);
 
     line = NULL;
+    return(0);
 }
 
 void end_stdio()
@@ -32,5 +33,5 @@ void process_stdio()
         line[--n] = 0;
     if (n == 0)
         return;
-    dispatch(line);
+    dispatch(line,0);
 }

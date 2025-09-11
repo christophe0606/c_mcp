@@ -4,6 +4,9 @@
         "compare": "c",
         "type_traits": "c",
         "utility": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "stdio.h": "c",
+        "config.h": "c",
+        "stdatomic.h": "c"
     }
 }

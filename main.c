@@ -3,10 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <signal.h>
 #include "cJSON.h"
 #include "config.h"
 
 _Atomic int done;
+static volatile sig_atomic_t g_stop = 0;
+
 
 enum type
 {
@@ -129,12 +132,19 @@ cJSON *get_json_for_tool(struct tool *tool)
 
 #define PROTOCOL_VERSION "2025-06-18" // match spec
 
-static void send_json(cJSON *obj)
+
+static void send_json(cJSON *obj,int cfd)
 {
+    (void)cfd;
     char *s = cJSON_PrintUnformatted(obj); // single line, no pretty \n
+#if defined(MCP_STDIO)
     fputs(s, stdout);
     fputc('\n', stdout); // newline = message boundary
     fflush(stdout);
+#else 
+    printf("Responding %s\n",s);
+    http_200_json(cfd,s);
+#endif
     free(s);
 }
 
@@ -265,13 +275,13 @@ static cJSON *handle_tools_call(cJSON *id, cJSON *params)
     return ok(id, result);
 }
 
-void dispatch(const char *line)
+void dispatch(const char *line,int cfd)
 {
     cJSON *root = cJSON_Parse(line);
     if (!root)
     {
         cJSON *e = err(NULL, -32700, "Parse error");
-        send_json(e);
+        send_json(e,cfd);
         cJSON_Delete(e);
         return;
     }
@@ -282,7 +292,7 @@ void dispatch(const char *line)
     if (!cJSON_IsString(method) || !method->valuestring)
     {
         cJSON *e = err(id, -32600, "Invalid Request");
-        send_json(e);
+        send_json(e,cfd);
         cJSON_Delete(e);
         cJSON_Delete(root);
         return;
@@ -318,13 +328,22 @@ void dispatch(const char *line)
         resp = err(id, -32601, "Method not found");
     }
 
-    send_json(resp);
+    send_json(resp,cfd);
     cJSON_Delete(resp);
     cJSON_Delete(root);
 }
 
+void on_sigint(int sig) 
+{ 
+    (void)sig; g_stop = 1; 
+}
+
+
 int main(void)
 {
+    
+    signal(SIGINT, on_sigint);
+
     struct tool *echoTool = add_tool("echo", "Echo input text");
     add_argument(echoTool, "text", TYPE_STR, "Text to echo");
 
@@ -335,13 +354,34 @@ int main(void)
 
     atomic_store(&done, 0);
 
-    while (atomic_load(&done) == 0)
+    int err=0;
+#if defined(MCP_STDIO)
+    err=init_stdio();
+#else
+    err=init_http();
+#endif
+
+   if (err != 0)
+   {
+         fprintf(stderr, "Failed to initialize MCP client\n");
+         return 1;
+   }
+
+    while ((atomic_load(&done) == 0) && (!g_stop))
     {
 #if defined(MCP_STDIO)
         process_stdio();
+#else
+        process_http();
 #endif
         processing_loop();
     }
+
+#if defined(MCP_STDIO)
+    end_stdio();
+#else
+    end_http();
+#endif
 
     return 0;
 }

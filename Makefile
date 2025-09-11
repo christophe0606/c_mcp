@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -g
-OBJ = main.o cJSON.o processing.o stdio.o
+OBJ = main.o cJSON.o processing.o stdio.o http.o
 TARGET = ctest
 
 all: $(TARGET)
@@ -19,6 +19,9 @@ processing.o: processing.c  config.h
 
 stdio.o: stdio.c config.h
 	$(CC) $(CFLAGS) -c stdio.c
+
+http.o: http.c config.h
+	$(CC) $(CFLAGS) -c http.c
 
 clean:
 	rm -f $(OBJ) $(TARGET)
