@@ -2,7 +2,7 @@
 	"servers": {
 		"ctest": {
 			"type": "stdio",
-			"command": "/Volumes/Ext/MyDev/NN_Tests/c_mcp/ctest",
+			"command": "/home/radxa/Dev/c_mcp/ctest",
 			"args": [
 			]
 		},

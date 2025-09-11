@@ -1,0 +1,9 @@
+{
+    "makefile.configureOnOpen": true,
+    "files.associations": {
+        "compare": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "typeinfo": "c"
+    }
+}
