@@ -1,4 +1,6 @@
 #include "config.h"
+#include "http.h"
+#include "mcp.h"
 
 // cc -O2 -pthread rt_http_control.c -o rt_http_control
 #define _GNU_SOURCE

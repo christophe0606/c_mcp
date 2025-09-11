@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "config.h"
+#include "stdio_transport.h"
+#include "mcp.h"
+#include "tools.h"
+
 
 static char *line = NULL;
 

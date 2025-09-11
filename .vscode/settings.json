@@ -7,6 +7,12 @@
         "typeinfo": "c",
         "stdio.h": "c",
         "config.h": "c",
-        "stdatomic.h": "c"
+        "stdatomic.h": "c",
+        "string.h": "c",
+        "cjson.h": "c",
+        "stdbool.h": "c",
+        "http.h": "c",
+        "stdlib.h": "c",
+        "stdio_transport.h": "c"
     }
 }

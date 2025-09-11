@@ -1,3 +1,4 @@
 *.o
 ctest
 *.log
+build/

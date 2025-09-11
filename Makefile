@@ -1,27 +1,30 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -g
-OBJ = main.o cJSON.o processing.o stdio.o http.o
+
+SRC := $(wildcard *.c)
+OBJ := $(patsubst %.c,build/%.o,$(SRC))
+DEP := $(OBJ:.o=.d)
+
 TARGET = ctest
+DEPFLAGS := -MMD -MP
+
+CFLAGS = -Wall -Wextra -O2 -g $(DEPFLAGS)
+
+DEP := $(OBJ:.o=.d)
+
 
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -pthread -o $(TARGET) $(OBJ)
 
-main.o: main.c cJSON.h config.h
-	$(CC) $(CFLAGS) -c main.c
 
-cJSON.o: cJSON.c cJSON.h
-	$(CC) $(CFLAGS) -c cJSON.c
+build/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@ -MF $(patsubst %.o,%.d,$@) -MT $@
 
-processing.o: processing.c  config.h
-	$(CC) $(CFLAGS) -c processing.c
+-include $(DEP)
 
-stdio.o: stdio.c config.h
-	$(CC) $(CFLAGS) -c stdio.c
-
-http.o: http.c config.h
-	$(CC) $(CFLAGS) -c http.c
+.PHONY: clean
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	$(RM) -r build $(TARGET)
