@@ -4,6 +4,9 @@
 #include <string.h>
 #include <stdbool.h>
 #include "cJSON.h"
+#include "config.h"
+
+_Atomic int done;
 
 enum type
 {
@@ -196,7 +199,7 @@ static cJSON *handle_tools_list(cJSON *id)
 
 static cJSON *handle_ping(cJSON *id)
 {
-     return ok(id, cJSON_CreateObject());
+    return ok(id, cJSON_CreateObject());
 }
 
 static cJSON *create_result_text(const char *text)
@@ -226,13 +229,12 @@ static cJSON *tool_add(cJSON *args)
     double ad = cJSON_IsNumber(a) ? a->valuedouble : 0.0;
     double bd = cJSON_IsNumber(b) ? b->valuedouble : 0.0;
     double sum = ad + bd;
-    
+
     char buf[64];
     snprintf(buf, sizeof(buf), "%.17g", sum);
 
     cJSON *res = create_result_text(buf);
 
-   
     return res;
 }
 
@@ -263,7 +265,7 @@ static cJSON *handle_tools_call(cJSON *id, cJSON *params)
     return ok(id, result);
 }
 
-static void dispatch(const char *line)
+void dispatch(const char *line)
 {
     cJSON *root = cJSON_Parse(line);
     if (!root)
@@ -331,23 +333,15 @@ int main(void)
     add_argument(addTool, "b", TYPE_FLOAT, "Second number");
     add_argument(addTool, "a", TYPE_FLOAT, "First number");
 
-    // No stdout noise — only valid MCP messages on stdout.
-    setvbuf(stdout, NULL, _IONBF, 0);
+    atomic_store(&done, 0);
 
-    char *line = NULL;
-    size_t cap = 0;
-    for (;;)
+    while (atomic_load(&done) == 0)
     {
-        size_t n = getline(&line, &cap, stdin);
-        if (n <= 0)
-            break; // EOF
-        // Trim trailing \r?\n
-        while (n > 0 && (line[n - 1] == '\n' || line[n - 1] == '\r'))
-            line[--n] = 0;
-        if (n == 0)
-            continue;
-        dispatch(line);
+#if defined(MCP_STDIO)
+        process_stdio();
+#endif
+        processing_loop();
     }
-    free(line);
+
     return 0;
 }
