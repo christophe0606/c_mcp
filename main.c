@@ -194,6 +194,11 @@ static cJSON *handle_tools_list(cJSON *id)
     return ok(id, result);
 }
 
+static cJSON *handle_ping(cJSON *id)
+{
+     return ok(id, cJSON_CreateObject());
+}
+
 static cJSON *create_result_text(const char *text)
 {
     cJSON *res = cJSON_CreateObject();
@@ -287,6 +292,10 @@ static void dispatch(const char *line)
     if (strcmp(m, "initialize") == 0)
     {
         resp = handle_initialize(id, params);
+    }
+    else if (strcmp(m, "ping") == 0)
+    {
+        resp = handle_ping(id);
     }
     else if (strcmp(m, "tools/list") == 0)
     {
