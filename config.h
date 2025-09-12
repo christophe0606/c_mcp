@@ -1,7 +1,7 @@
 #ifndef config_h
 #define config_h
 
-#define _GNU_SOURCE
+//#define _GNU_SOURCE
 #include <stdatomic.h>
 
 // Comment to enable HTTP

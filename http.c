@@ -1,9 +1,10 @@
+#define _GNU_SOURCE
+
 #include "config.h"
 #include "http.h"
 #include "mcp.h"
 
 // cc -O2 -pthread rt_http_control.c -o rt_http_control
-#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -33,7 +34,7 @@
 #define MSG_MAX 4096
 #endif
 
-//#define DEBUG_TRACE
+#define DEBUG_TRACE
 
 
 typedef struct {
@@ -146,6 +147,15 @@ static void http_404(int cfd) {
             strlen(m), m);
 }
 
+static void http_405(int cfd) {
+#if defined(DEBUG_TRACE)
+    printf("HTTP 405\n");
+#endif
+    const char* m = "not allowed";
+    dprintf(cfd, "HTTP/1.1 405 Method Not Allowed\r\nConnection: close\r\nContent-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%s",
+            strlen(m), m);
+}
+
 void http_200_json(int cfd, const char* body) {
 #if defined(DEBUG_TRACE)
     printf("HTTP 200: %s\n", body);
@@ -159,10 +169,11 @@ static void trim_trailing_newlines(char* s) {
     while (n && (s[n-1] == '\n' || s[n-1] == '\r')) s[--n] = 0;
 }
 
+char hdr[8192*2];
+
 /* Handle exactly: POST /cmd HTTP/1.1, with single-line JSON body */
 static void handle_http_client(int cfd) {
     // Read until we have headers (\r\n\r\n)
-    char hdr[8192];
     size_t used = 0;
     for (;;) {
         if (used >= sizeof(hdr)) { http_400(cfd, "headers too large"); return; }
@@ -195,6 +206,16 @@ static void handle_http_client(int cfd) {
                http_200_json(cfd, "{\"status\":\"ok\"}\n");
                return;
            }
+
+           else if (strcmp(path, "/mcp") == 0)
+           {
+               http_405(cfd);
+               return;
+           }
+           else 
+           {
+               http_404(cfd); return;
+           }
         }
 
         // Only POST /cmd
@@ -208,8 +229,12 @@ static void handle_http_client(int cfd) {
             // crude header parse (case-insensitive not required if you control client)
             char* cl = strcasestr(hdr, "Content-Length:");
             if (!cl) { http_400(cfd, "missing content-length"); return; }
-            if (sscanf(cl, "Content-Length: %zu", &content_length) != 1) {
-                http_400(cfd, "bad content-length"); return;
+            if (sscanf(cl, "Content-Length: %zu", &content_length) != 1) 
+            {
+                if (sscanf(cl, "content-length: %zu", &content_length) != 1)
+                {
+                   http_400(cfd, "bad content-length"); return;
+                }
             }
             if (content_length >= MSG_MAX) { http_400(cfd, "body too large"); return; }
         }

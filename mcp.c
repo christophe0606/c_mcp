@@ -157,6 +157,20 @@ cJSON *err(cJSON *id, int code, const char *msg)
     return m;
 }
 
+cJSON *handle_fetch()
+{
+    cJSON *result = cJSON_CreateObject();
+    cJSON_AddStringToObject(result, "mcpVersion", "0.1");
+    cJSON_AddStringToObject(result, "name", "hyperbolic");
+    cJSON_AddStringToObject(result, "version", "0.1.0");
+    cJSON *cap = cJSON_CreateObject();
+    cJSON_AddBoolToObject(cap, "tools", 1);
+    cJSON_AddItemToObject(result, "capabilities", cap);
+
+    return result;
+
+}
+
 static cJSON *handle_initialize(cJSON *id, cJSON *params)
 {
     (void)params;
@@ -213,6 +227,13 @@ cJSON *create_result_text(const char *text)
 
 void dispatch(const char *line,int cfd)
 {
+    if (line[0] == 0) // It was a get request
+    {
+        cJSON *resp = handle_fetch();
+        send_json(resp,cfd);
+        cJSON_Delete(resp);
+        return;
+    }
     cJSON *root = cJSON_Parse(line);
     if (!root)
     {
@@ -221,6 +242,7 @@ void dispatch(const char *line,int cfd)
         cJSON_Delete(e);
         return;
     }
+    
     cJSON *id = cJSON_GetObjectItemCaseSensitive(root, "id"); // may be NULL for notifications
     cJSON *method = cJSON_GetObjectItemCaseSensitive(root, "method");
     cJSON *params = cJSON_GetObjectItemCaseSensitive(root, "params");

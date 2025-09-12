@@ -26,7 +26,7 @@ extern struct tool *add_tool(const char *name,
 extern cJSON *ok(cJSON *id, cJSON *result);
 extern cJSON *err(cJSON *id, int code, const char *msg);
 extern cJSON *create_result_text(const char *text);
-
-
+extern cJSON *handle_fetch();
+extern cJSON *handle_tools_call(cJSON *id, cJSON *params);
 
 #endif
