@@ -278,6 +278,7 @@ void dispatch(const char *line,int cfd)
     else if (strcmp(m, "notifications/initialized") == 0)
     {
         // Notification: do NOT respond
+        http_202(cfd);
         cJSON_Delete(root);
         return;
     }

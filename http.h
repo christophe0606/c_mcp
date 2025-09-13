@@ -8,6 +8,7 @@ extern void process_http();
 extern int init_http();
 extern void end_http();
 extern void http_200_json(int cfd, const char* body);
+extern void http_202(int cfd);
 
 
 #endif

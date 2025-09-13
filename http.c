@@ -34,7 +34,7 @@
 #define MSG_MAX 4096
 #endif
 
-#define DEBUG_TRACE
+//#define DEBUG_TRACE
 
 
 typedef struct {
@@ -156,9 +156,17 @@ static void http_405(int cfd) {
             strlen(m), m);
 }
 
+void http_202(int cfd) {
+#if defined(DEBUG_TRACE)
+    printf("HTTP 202\n");
+#endif
+    const char* m = "Accepted";
+    dprintf(cfd, "HTTP/1.1 202 Accepted\r\nConnection: close\r\nContent-Type: text/plain\r\nContent-Length: %zu\r\n\r\n%s",
+            strlen(m), m);
+}
 void http_200_json(int cfd, const char* body) {
 #if defined(DEBUG_TRACE)
-    printf("HTTP 200: %s\n", body);
+    printf("HTTP 200: %s\n\n", body);
 #endif
     size_t len = strlen(body);
     dprintf(cfd, "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: %zu\r\n\r\n%s", len, body);
@@ -209,7 +217,7 @@ static void handle_http_client(int cfd) {
 
            else if (strcmp(path, "/mcp") == 0)
            {
-               http_405(cfd);
+               http_400(cfd, "GET not supported on /mcp, use POST\n");
                return;
            }
            else 
