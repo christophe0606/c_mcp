@@ -237,7 +237,7 @@ void dispatch(const char *line,int cfd)
     cJSON *root = cJSON_Parse(line);
     if (!root)
     {
-        cJSON *e = err(NULL, -32700, "Parse error");
+        cJSON *e = err(NULL, MCP_PARSE_ERROR, "Parse error");
         send_json(e,cfd);
         cJSON_Delete(e);
         return;
@@ -249,7 +249,7 @@ void dispatch(const char *line,int cfd)
 
     if (!cJSON_IsString(method) || !method->valuestring)
     {
-        cJSON *e = err(id, -32600, "Invalid Request");
+        cJSON *e = err(id, MCP_INVALID_REQUEST, "Invalid Request");
         send_json(e,cfd);
         cJSON_Delete(e);
         cJSON_Delete(root);
@@ -284,7 +284,7 @@ void dispatch(const char *line,int cfd)
     }
     else
     {
-        resp = err(id, -32601, "Method not found");
+        resp = err(id, MCP_METHOD_NOT_FOUND, "Method not found");
     }
 
     send_json(resp,cfd);

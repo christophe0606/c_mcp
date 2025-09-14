@@ -12,6 +12,12 @@ enum type
     TYPE_BOOL
 };
 
+#define MCP_PARSE_ERROR (-32700)
+#define MCP_INVALID_REQUEST (-32600)
+#define MCP_METHOD_NOT_FOUND (-32601)
+#define MCP_INVALID_PARAMS (-32602)
+#define MCP_INTERNAL_ERROR (-32603)
+
 struct argument;
 struct tool;
 
