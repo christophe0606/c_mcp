@@ -129,7 +129,7 @@ static void send_json(cJSON *obj,int cfd)
     fputc('\n', stdout); // newline = message boundary
     fflush(stdout);
 #else 
-    printf("Responding %s\n",s);
+    //printf("Responding %s\n",s);
     http_200_json(cfd,s);
 #endif
     free(s);

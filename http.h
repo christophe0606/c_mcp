@@ -3,7 +3,6 @@
 
 #define MCP_PORT 8100
 
-
 extern void process_http();
 extern int init_http();
 extern void end_http();
