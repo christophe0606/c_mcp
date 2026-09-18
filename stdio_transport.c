@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include "config.h"
 #include "stdio_transport.h"
 #include "mcp.h"
@@ -26,7 +27,7 @@ void process_stdio()
 {
     size_t cap = 0;
 
-    size_t n = getline(&line, &cap, stdin);
+    ssize_t n = getline(&line, &cap, stdin);
     if (n <= 0)
     {
         atomic_store(&done, 1);
