@@ -1,8 +1,27 @@
-add_library(CMCP 
-  cJSON.c
-  http.c
-  mcp.c
-  stdio_transport.c
-  )
+cmake_minimum_required(VERSION 3.20)
+project(c_mcp LANGUAGES C)
 
+# The core uses only standard C. POSIX transports remain enabled by default
+# on Linux/macOS; embedded users may also compile mcp.c and cJSON.c directly.
+option(CMCP_BUILD_HTTP "Build the POSIX HTTP transport" ${UNIX})
+option(CMCP_BUILD_STDIO "Build the POSIX getline input loop" ${UNIX})
+option(CMCP_BUILD_TESTS "Build portable dispatcher tests" OFF)
+add_library(CMCP cJSON.c mcp.c)
 target_include_directories(CMCP PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+if(CMCP_BUILD_HTTP OR CMCP_BUILD_STDIO)
+  target_compile_features(CMCP PRIVATE c_std_11)
+endif()
+if(CMCP_BUILD_HTTP)
+  find_package(Threads REQUIRED)
+  target_sources(CMCP PRIVATE http.c)
+  target_link_libraries(CMCP PUBLIC Threads::Threads)
+endif()
+if(CMCP_BUILD_STDIO)
+  target_sources(CMCP PRIVATE stdio_transport.c)
+endif()
+if(CMCP_BUILD_TESTS)
+  enable_testing()
+  add_executable(cmcp_core_test tests/core_test.c)
+  target_link_libraries(cmcp_core_test PRIVATE CMCP)
+  add_test(NAME cmcp_core COMMAND cmcp_core_test)
+endif()

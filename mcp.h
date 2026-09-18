@@ -1,6 +1,9 @@
 #ifndef mcp_h
 #define mcp_h
 #include "cJSON.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 
@@ -22,6 +25,12 @@ struct argument;
 struct tool;
 
 extern void dispatch(const char *line,int fd);
+/* The callback consumes the JSON synchronously; it must not retain the pointer.
+ * NULL means a valid notification: no JSON-RPC response (HTTP may send 202).
+ * The core owns the JSON string. fd is passed through unchanged.
+ */
+typedef void (*mcp_send_fn)(const char *json, int fd);
+extern void dispatch_with_sender(const char *line, int fd, mcp_send_fn send);
 extern void add_argument(struct tool *tool,
                   const char *name,
                   enum type type,
@@ -34,5 +43,10 @@ extern cJSON *err(cJSON *id, int code, const char *msg);
 extern cJSON *create_result_text(const char *text);
 extern cJSON *handle_fetch();
 extern cJSON *handle_tools_call(cJSON *id, cJSON *params);
+extern void free_tools(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

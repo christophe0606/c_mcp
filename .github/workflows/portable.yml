@@ -1,0 +1,17 @@
+name: Portable core and POSIX transports
+on: [push, pull_request]
+jobs:
+  posix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build && cmake --build build
+      - run: cmake -S . -B build-core -DCMCP_BUILD_HTTP=OFF -DCMCP_BUILD_STDIO=OFF -DCMCP_BUILD_TESTS=ON && cmake --build build-core && ctest --test-dir build-core --output-on-failure
+      - name: Build demos with both transports
+        run: |
+          cc -std=gnu11 -pthread mcp.c cJSON.c http.c stdio_transport.c tools.c main.c processing.c -o build/http-demo
+          cc -std=gnu11 -DMCP_STDIO mcp.c cJSON.c stdio_transport.c tools.c main.c processing.c -o build/stdio-demo
+      - run: python3 tests/test_transports.py build/stdio-demo build/http-demo

@@ -326,11 +326,17 @@ static  pthread_t http_thr;
 char line[MSG_MAX];
 
 
+static void send_http(const char *json, int cfd)
+{
+    if (json) http_200_json(cfd, json);
+    else http_202(cfd);
+}
+
 void process_http()
 {
     int cfd;
     while (try_dequeue(line,&cfd)) {
-        dispatch(line,cfd);
+        dispatch_with_sender(line,cfd,send_http);
         close(cfd);
     }
 }
