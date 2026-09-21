@@ -2,3 +2,4 @@
 ctest
 *.log
 build/
+__pycache__/

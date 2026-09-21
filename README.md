@@ -7,6 +7,30 @@ The `tools.cpp` is not built into the library since it must be provided by the a
 
 `tools.cpp` is just used to build the demo example.
 
+## Serial-to-HTTP MCP bridge
+
+`tools/mcp_serial_bridge.py` exposes a board's newline-delimited UART MCP
+server at `http://127.0.0.1:8765/mcp`. Requires Python 3.10 or newer and `uv`.
+From this repository's root, start one shared bridge (adjust the serial port):
+
+```sh
+uv run --script tools/mcp_serial_bridge.py --port COM5
+```
+
+UV installs the inline dependencies into a cached script environment.
+For an existing application environment or editor analysis, install
+`tools/requirements-mcp-serial-bridge.txt` into that environment:
+
+```sh
+uv pip install --python <venv-python> -r tools/requirements-mcp-serial-bridge.txt
+```
+
+Replace `<venv-python>` with the environment's Python executable. When this
+repository is a submodule, prefix the script and requirements paths with its
+location in the parent repository. Keep both dependency declarations in sync.
+The bridge must be the serial port's only owner; Ctrl+C stops it and releases
+the port. Use `--smoke-test` to check an already running bridge through HTTP.
+
 ## Portable core and optional transports
 
 The portable core consists of `mcp.c` and `cJSON.c`, with their headers.
