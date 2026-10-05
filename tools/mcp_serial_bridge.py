@@ -2,7 +2,7 @@
 # requires-python = ">=3.10"
 # dependencies = ["mcp==1.26.0", "pyserial==3.5", "anyio", "starlette", "uvicorn"]
 # ///
-"""Serve the board's UART tools over a shared localhost HTTP MCP endpoint.
+"""Serve the board's UART tools and resources over shared localhost HTTP MCP.
 
 From the c_mcp repository root:
     uv run --script tools/mcp_serial_bridge.py --port COM5
@@ -14,6 +14,7 @@ Check the running server with --smoke-test (does not open the serial port).
 """
 
 import argparse
+import base64
 from contextlib import asynccontextmanager
 from itertools import count
 import json
@@ -130,6 +131,11 @@ class SerialRpc:
 class BoardRpcError(RuntimeError):
     """A board JSON-RPC error, without a transport failure."""
 
+    def __init__(self, code, message):
+        self.code = code
+        self.message = message
+        super().__init__(f"Board error {code}: {message}")
+
 
 class BoardGateway:
     """One UART owner with IDs and a transaction lock shared by every client.
@@ -165,7 +171,7 @@ class BoardGateway:
                 return None
             if "error" in response:
                 error = response["error"]
-                raise BoardRpcError(f"Board error {error['code']}: {error['message']}")
+                raise BoardRpcError(error["code"], error["message"])
             return response["result"]
 
     def needs_reconnect(self):
@@ -202,6 +208,8 @@ def create_http_app(port_name, baud=115200, timeout=15.0, *, rpc_factory=None,
     import anyio
     from mcp import types
     from mcp.server.lowlevel import NotificationOptions, Server
+    from mcp.server.lowlevel.helper_types import ReadResourceContents
+    from mcp.shared.exceptions import McpError
     from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
     from mcp.server.transport_security import TransportSecuritySettings
     from starlette.applications import Starlette
@@ -211,6 +219,7 @@ def create_http_app(port_name, baud=115200, timeout=15.0, *, rpc_factory=None,
         raise ValueError("Reconnect interval must be positive")
 
     sessions = set()
+    state = {}
 
     @asynccontextmanager
     async def session_lifespan(server):
@@ -224,8 +233,14 @@ def create_http_app(port_name, baud=115200, timeout=15.0, *, rpc_factory=None,
         def create_initialization_options(self, notification_options=None,
                                           experimental_capabilities=None):
             return super().create_initialization_options(
-                notification_options or NotificationOptions(tools_changed=True),
+                notification_options or NotificationOptions(tools_changed=True, resources_changed=True),
                 experimental_capabilities)
+
+        def get_capabilities(self, notification_options, experimental_capabilities):
+            capabilities = super().get_capabilities(notification_options, experimental_capabilities)
+            if not state.get("has_resources", False):
+                capabilities.resources = None
+            return capabilities
 
         # The pinned SDK has no public initialized-session hook. Track sessions
         # here, and remove them through its public per-session lifespan hook.
@@ -241,7 +256,6 @@ def create_http_app(port_name, baud=115200, timeout=15.0, *, rpc_factory=None,
     server = ToolUpdateServer("hyperbolic-uart-bridge", version="1.0.0",
                     lifespan=session_lifespan,
                     instructions="All clients control the same board. Changes from other clients are immediately shared.")
-    state = {}
 
     @server.list_tools()
     async def list_tools():
@@ -252,6 +266,27 @@ def create_http_app(port_name, baud=115200, timeout=15.0, *, rpc_factory=None,
         result = await anyio.to_thread.run_sync(
             state["gateway"].request, "tools/call", {"name": name, "arguments": arguments})
         return types.CallToolResult.model_validate(result)
+
+    @server.list_resources()
+    async def list_resources():
+        return state["resources"]
+
+    @server.read_resource()
+    async def read_resource(uri):
+        if not state["has_resources"]:
+            raise McpError(types.ErrorData(code=-32601, message="Board does not support resources"))
+        try:
+            result = types.ReadResourceResult.model_validate(await anyio.to_thread.run_sync(
+                state["gateway"].request, "resources/read", {"uri": str(uri)}))
+        except BoardRpcError as exc:
+            raise McpError(types.ErrorData(code=exc.code, message=exc.message)) from exc
+        contents = []
+        for content in result.contents:
+            if str(content.uri) != str(uri):
+                raise ValueError("Board returned contents for a different resource URI")
+            data = content.text if isinstance(content, types.TextResourceContents) else base64.b64decode(content.blob, validate=True)
+            contents.append(ReadResourceContents(content=data, mime_type=content.mimeType, meta=content.meta))
+        return contents
 
     manager = StreamableHTTPSessionManager(
         app=server, json_response=True, stateless=False,
@@ -265,7 +300,7 @@ def create_http_app(port_name, baud=115200, timeout=15.0, *, rpc_factory=None,
     async def connect():
         gateway = BoardGateway(await anyio.to_thread.run_sync(factory), request_ids)
         try:
-            await anyio.to_thread.run_sync(gateway.request, "initialize", {
+            initialized = await anyio.to_thread.run_sync(gateway.request, "initialize", {
                 "protocolVersion": "2025-06-18", "capabilities": {},
                 "clientInfo": {"name": "hyperbolic-uart-bridge", "version": "1.0.0"}})
             await anyio.to_thread.run_sync(
@@ -287,19 +322,40 @@ def create_http_app(port_name, baud=115200, timeout=15.0, *, rpc_factory=None,
             tools.sort(key=lambda tool: tool.name)
             if len({tool.name for tool in tools}) != len(tools):
                 raise ValueError("Board returned duplicate tool names")
-            return gateway, tools
+            has_resources = isinstance(initialized.get("capabilities", {}).get("resources"), dict)
+            resources = []
+            if has_resources:
+                cursors = set()
+                params = None
+                while True:
+                    result = types.ListResourcesResult.model_validate(
+                        await anyio.to_thread.run_sync(gateway.request, "resources/list", params))
+                    resources.extend(result.resources)
+                    if result.nextCursor is None:
+                        break
+                    if result.nextCursor in cursors:
+                        raise ValueError("Board repeated a resources/list cursor")
+                    cursors.add(result.nextCursor)
+                    params = {"cursor": result.nextCursor}
+                resources.sort(key=lambda resource: str(resource.uri))
+                if len({str(resource.uri) for resource in resources}) != len(resources):
+                    raise ValueError("Board returned duplicate resource URIs")
+            return gateway, tools, resources, has_resources
         except BaseException:
             with anyio.CancelScope(shield=True):
                 await anyio.to_thread.run_sync(gateway.close)
             raise
 
-    async def notify_session(session):
+    async def notify_session(session, tools_changed, resources_changed):
         try:
             # A stalled client must not delay reconnection or other clients.
             with anyio.fail_after(2):
-                await session.send_tool_list_changed()
+                if tools_changed:
+                    await session.send_tool_list_changed()
+                if resources_changed:
+                    await session.send_resource_list_changed()
         except Exception:
-            logger.warning("Could not deliver tool-list update to MCP client", exc_info=True)
+            logger.warning("Could not deliver catalog update to MCP client", exc_info=True)
 
     async def reconnect():
         while True:
@@ -311,22 +367,23 @@ def create_http_app(port_name, baud=115200, timeout=15.0, *, rpc_factory=None,
             # Requests already queued on this gateway fail; none are replayed.
             await anyio.to_thread.run_sync(gateway.close, "UART disconnected; reconnecting")
             try:
-                replacement, tools = await connect()
+                replacement, tools, resources, has_resources = await connect()
             except Exception as exc:
                 logger.warning("UART reconnect/discovery failed: %s", exc)
                 continue
             changed = tools != state["tools"]
-            state.update(gateway=replacement, tools=tools)
-            logger.info("UART reconnected; discovered %d tools (changed=%s)", len(tools), changed)
-            if changed:
+            resources_changed = resources != state["resources"] or has_resources != state["has_resources"]
+            state.update(gateway=replacement, tools=tools, resources=resources, has_resources=has_resources)
+            logger.info("UART reconnected; discovered %d tools, %d resources", len(tools), len(resources))
+            if changed or resources_changed:
                 async with anyio.create_task_group() as group:
                     for session in tuple(sessions):
-                        group.start_soon(notify_session, session)
+                        group.start_soon(notify_session, session, changed, resources_changed)
 
     @asynccontextmanager
     async def lifespan(app):
-        gateway, tools = await connect()
-        state.update(gateway=gateway, tools=tools)
+        gateway, tools, resources, has_resources = await connect()
+        state.update(gateway=gateway, tools=tools, resources=resources, has_resources=has_resources)
         try:
             async with manager.run(), anyio.create_task_group() as group:
                 group.start_soon(reconnect)
@@ -356,9 +413,14 @@ async def smoke_test(url):
             initialized = await session.initialize()
             tools = await session.list_tools()
             status = await session.call_tool("status", {})
+            resources = await session.list_resources() if initialized.capabilities.resources else None
+            resource_status = await session.read_resource("hyperbolic://renderer/status") if resources and any(
+                str(resource.uri) == "hyperbolic://renderer/status" for resource in resources.resources) else None
             print(json.dumps({"initialize": initialized.model_dump(mode="json"),
                               "tools": tools.model_dump(mode="json"),
-                              "status": status.model_dump(mode="json")}, indent=2))
+                              "status": status.model_dump(mode="json"),
+                              "resources": resources.model_dump(mode="json") if resources else None,
+                              "resource_status": resource_status.model_dump(mode="json") if resource_status else None}, indent=2))
             if status.isError:
                 raise RuntimeError("Board status failed")
 

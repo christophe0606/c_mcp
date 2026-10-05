@@ -59,6 +59,16 @@ static int invalid_callback(int argc, const char **message, const char **args)
     (void)argc; (void)message; (void)args; return 0;
 }
 
+static int resource_calls;
+static int resource_callback(const char **message)
+{
+    char *output = mcp_arena_alloc(80);
+    CHECK(output);
+    snprintf(output, 80, "sensor value %d", ++resource_calls);
+    *message = output; return 0;
+}
+static int resource_failure(const char **message) { *message = "Sensor unavailable"; return -1; }
+
 int main(void)
 {
     struct tool *tool = add_tool("test", "Test");
@@ -141,6 +151,49 @@ int main(void)
         cJSON_Delete(reply); reply = NULL;
     }
     {
+        CHECK(mcp_prepare() == 0);
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":30,\"method\":\"initialize\"}");
+        result = cJSON_GetObjectItemCaseSensitive(reply, "result");
+        cJSON *capabilities = cJSON_GetObjectItemCaseSensitive(result, "capabilities");
+#if C_MCP_ENABLE_VFS
+        CHECK(cJSON_IsObject(cJSON_GetObjectItemCaseSensitive(capabilities, "resources")));
+        free_tools();
+        CHECK(add_resource("sensor://unit/value", "Value", "Sensor value", "text/plain", resource_callback));
+        CHECK(add_resource("sensor://unit/error", "Error", NULL, NULL, resource_failure));
+        CHECK(!add_resource("sensor://unit/value", "Duplicate", NULL, NULL, resource_callback));
+        CHECK(mcp_prepare() == 0);
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":31,\"method\":\"resources/list\"}");
+        CHECK(strstr(wire, "sensor://unit/value") && strstr(wire, "text/plain"));
+        exchange("{\"jsonrpc\":\"2.0\",\"method\":\"resources/read\",\"params\":{\"uri\":\"sensor://unit/value\"}}");
+        CHECK(resource_calls == 0);
+        {
+            int i;
+            for (i = 0; i < 100; ++i)
+                exchange("{\"jsonrpc\":\"2.0\",\"id\":32,\"method\":\"resources/read\",\"params\":{\"uri\":\"sensor://unit/value\"}}");
+        }
+        CHECK(strstr(wire, "sensor value 100") && mcp_resource_lookup_steps() <= 2);
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":33,\"method\":\"resources/read\",\"params\":{\"uri\":\"sensor://unit/missing\"}}");
+        CHECK(strstr(wire, "-32002"));
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":34,\"method\":\"resources/read\",\"params\":{\"uri\":\"sensor://unit/error\"}}");
+        CHECK(strstr(wire, "-32603") && strstr(wire, "Sensor unavailable"));
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":35,\"method\":\"resources/read\",\"params\":{\"uri\":\"sensor://unit/value\",\"arguments\":{}}}");
+        CHECK(strstr(wire, "-32602") && resource_calls == 100);
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":36,\"method\":\"resources/read\",\"params\":{\"uri\":false}}");
+        CHECK(strstr(wire, "-32602"));
+        free_tools();
+        CHECK(mcp_resource_index_height() == 0);
+#else
+        CHECK(!cJSON_GetObjectItemCaseSensitive(capabilities, "resources"));
+        CHECK(!add_resource("sensor://unit/value", "Value", NULL, NULL, resource_callback));
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":31,\"method\":\"resources/list\"}");
+        CHECK(strstr(wire, "-32601"));
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":32,\"method\":\"resources/read\",\"params\":{\"uri\":\"sensor://unit/value\"}}");
+        CHECK(strstr(wire, "-32601"));
+        free_tools();
+#endif
+        cJSON_Delete(reply); reply = NULL;
+    }
+    {
         char names[257][32];
         struct tool *registered[257];
         int order, i;
@@ -165,5 +218,24 @@ int main(void)
             CHECK(mcp_tool_index_height() == 0);
         }
     }
+#if C_MCP_ENABLE_VFS
+    {
+        char uris[257][40];
+        int i;
+        for (i = 0; i < 257; ++i) {
+            snprintf(uris[i], sizeof(uris[i]), "sensor://unit/values/%03d", i);
+            CHECK(add_resource(uris[i], "Value", NULL, NULL, resource_callback));
+            CHECK(mcp_resource_index_height() <= 11);
+        }
+        CHECK(mcp_prepare() == 0);
+        for (i = 0; i < 257; ++i) {
+            char request[180];
+            snprintf(request, sizeof(request), "{\"jsonrpc\":\"2.0\",\"id\":40,\"method\":\"resources/read\",\"params\":{\"uri\":\"%s\"}}", uris[i]);
+            exchange(request);
+            CHECK(strstr(wire, "sensor value") && mcp_resource_lookup_steps() <= 11);
+        }
+        cJSON_Delete(reply); reply = NULL; free_tools();
+    }
+#endif
     return 0;
 }

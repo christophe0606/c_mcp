@@ -15,6 +15,60 @@ static size_t arena_used, arena_peak, heap_allocations;
 static int request_active, arena_failed, prepared, hooks_installed, heap_failed, registration_failed;
 static cJSON *tools_result, *success_template, *error_template, *text_template;
 static cJSON *success_id, *success_value, *error_id, *error_code, *error_message, *text_value;
+static void install_hooks(void);
+#if C_MCP_ENABLE_VFS
+struct mcp_resource {
+    struct mcp_index index;
+    const char *name, *description, *mime_type;
+    mcp_resource_fn callback;
+    struct mcp_resource *next;
+};
+static struct mcp_resource *resource_list;
+static struct mcp_index *resource_index;
+static size_t resource_steps;
+static cJSON *resources_result, *resource_template, *resource_uri, *resource_mime, *resource_text;
+#endif
+
+struct mcp_resource *add_resource(const char *uri, const char *name,
+    const char *description, const char *mime_type, mcp_resource_fn callback)
+{
+#if C_MCP_ENABLE_VFS
+    struct mcp_resource *resource;
+    if (prepared || request_active || !uri || !*uri || !strchr(uri, ':') || !name || !*name ||
+        !callback || index_find(resource_index, uri, NULL)) return NULL;
+    install_hooks();
+    resource = malloc(sizeof(*resource));
+    if (!resource) { registration_failed = 1; return NULL; }
+    resource->index.key = uri; resource->index.value = resource;
+    resource->index.left = resource->index.right = NULL; resource->index.height = 1;
+    resource->name = name; resource->description = description;
+    resource->mime_type = mime_type ? mime_type : "text/plain";
+    resource->callback = callback;
+    resource->next = resource_list; resource_list = resource;
+    resource_index = index_insert(resource_index, &resource->index);
+    return resource;
+#else
+    (void)uri; (void)name; (void)description; (void)mime_type; (void)callback;
+    return NULL;
+#endif
+}
+
+size_t mcp_resource_index_height(void)
+{
+#if C_MCP_ENABLE_VFS
+    return (size_t)index_height(resource_index);
+#else
+    return 0;
+#endif
+}
+size_t mcp_resource_lookup_steps(void)
+{
+#if C_MCP_ENABLE_VFS
+    return resource_steps;
+#else
+    return 0;
+#endif
+}
 
 void *mcp_arena_alloc(size_t size)
 {
@@ -253,6 +307,15 @@ struct tool *add_tool(const char *name,
 void free_tools()
 {
     if (request_active) return;
+#if C_MCP_ENABLE_VFS
+    cJSON_Delete(resources_result); resources_result = NULL;
+    cJSON_Delete(resource_template); resource_template = NULL;
+    while (resource_list) {
+        struct mcp_resource *next = resource_list->next;
+        free(resource_list); resource_list = next;
+    }
+    resource_index = NULL; resource_steps = 0;
+#endif
     cJSON_Delete(tools_result); tools_result = NULL;
     cJSON_Delete(success_template); success_template = NULL;
     cJSON_Delete(error_template); error_template = NULL;
@@ -316,6 +379,36 @@ cJSON *get_json_for_tool(struct tool *tool)
     return (t);
 }
 
+#if C_MCP_ENABLE_VFS
+static int prepare_resources(void)
+{
+    struct mcp_resource *resource;
+    cJSON *list, *item, *contents;
+    cJSON_Delete(resources_result); cJSON_Delete(resource_template);
+    resources_result = cJSON_CreateObject();
+    list = cJSON_AddArrayToObject(resources_result, "resources");
+    for (resource = resource_list; resource; resource = resource->next) {
+        item = cJSON_CreateObject();
+        cJSON_AddStringToObject(item, "uri", resource->index.key);
+        cJSON_AddStringToObject(item, "name", resource->name);
+        if (resource->description) cJSON_AddStringToObject(item, "description", resource->description);
+        cJSON_AddStringToObject(item, "mimeType", resource->mime_type);
+        if (!cJSON_AddItemToArray(list, item)) { cJSON_Delete(item); return -1; }
+    }
+    resource_template = cJSON_CreateObject();
+    contents = cJSON_AddArrayToObject(resource_template, "contents");
+    item = cJSON_CreateObject();
+    cJSON_AddItemToArray(contents, item);
+    resource_uri = cJSON_CreateStringReference("");
+    resource_mime = cJSON_CreateStringReference("");
+    resource_text = cJSON_CreateStringReference("");
+    cJSON_AddItemToObject(item, "uri", resource_uri);
+    cJSON_AddItemToObject(item, "mimeType", resource_mime);
+    cJSON_AddItemToObject(item, "text", resource_text);
+    return heap_failed || !list || !contents || !resource_uri || !resource_mime || !resource_text ? -1 : 0;
+}
+#endif
+
 int mcp_prepare(void)
 {
     struct tool *tool;
@@ -334,6 +427,9 @@ int mcp_prepare(void)
         cJSON *json = get_json_for_tool(tool);
         if (!json || !cJSON_AddItemToArray(list, json)) { cJSON_Delete(json); return -1; }
     }
+#if C_MCP_ENABLE_VFS
+    if (prepare_resources() != 0) return -1;
+#endif
     success_template = cJSON_CreateObject();
     cJSON_AddStringToObject(success_template, "jsonrpc", "2.0");
     success_id = cJSON_AddNullToObject(success_template, "id");
@@ -468,6 +564,13 @@ static cJSON *handle_initialize(cJSON *id, cJSON *params)
     cJSON *tools = cJSON_CreateObject();
     cJSON_AddBoolToObject(tools, "listChanged", 0);
     cJSON_AddItemToObject(caps, "tools", tools);
+#if C_MCP_ENABLE_VFS
+    {
+        cJSON *resources = cJSON_AddObjectToObject(caps, "resources");
+        cJSON_AddBoolToObject(resources, "subscribe", 0);
+        cJSON_AddBoolToObject(resources, "listChanged", 0);
+    }
+#endif
     cJSON_AddItemToObject(result, "capabilities", caps);
 
     cJSON *serverInfo = cJSON_CreateObject();
@@ -581,6 +684,33 @@ cJSON *handle_tools_call(cJSON *id, cJSON *params)
     }
 }
 
+#if C_MCP_ENABLE_VFS
+static cJSON *handle_resource_read(cJSON *id, cJSON *params)
+{
+    const cJSON *uri = cJSON_GetObjectItemCaseSensitive(params, "uri"), *input;
+    const char *message = NULL;
+    struct mcp_resource *resource;
+    int status;
+    if (!cJSON_IsObject(params) || !cJSON_IsString(uri))
+        return err(id, MCP_INVALID_PARAMS, "Expected resource URI");
+    for (input = params->child; input; input = input->next) {
+        if ((!strcmp(input->string, "uri") && input != uri) ||
+            (strcmp(input->string, "uri") && strcmp(input->string, "_meta")))
+            return err(id, MCP_INVALID_PARAMS, "Resource reads accept only uri and optional metadata");
+    }
+    resource = (struct mcp_resource *)index_find(resource_index, uri->valuestring, &resource_steps);
+    if (!resource) return err(id, MCP_RESOURCE_NOT_FOUND, "Resource not found");
+    status = resource->callback(&message);
+    if (status != 0 || !message)
+        return err(id, status <= -32000 && status >= -32768 ? status : MCP_INTERNAL_ERROR,
+                   message ? message : "Invalid resource callback result");
+    resource_uri->valuestring = (char *)resource->index.key;
+    resource_mime->valuestring = (char *)resource->mime_type;
+    resource_text->valuestring = mcp_arena_strdup(message);
+    return ok(id, resource_text->valuestring ? resource_template : NULL);
+}
+#endif
+
 void dispatch(const char *line,int cfd)
 {
     dispatch_with_sender(line, cfd, send_stdio);
@@ -647,6 +777,16 @@ void dispatch_with_sender(const char *line, int cfd, mcp_send_fn send)
     {
         resp = handle_tools_call(id, params);
     }
+#if C_MCP_ENABLE_VFS
+    else if (strcmp(m, "resources/list") == 0) {
+        if ((params && !cJSON_IsObject(params)) || cJSON_GetObjectItemCaseSensitive(params, "cursor"))
+            resp = err(id, MCP_INVALID_PARAMS, "Resource list is not paginated");
+        else resp = ok(id, resources_result);
+    }
+    else if (strcmp(m, "resources/read") == 0) {
+        resp = handle_resource_read(id, params);
+    }
+#endif
     else
     {
         resp = err(id, MCP_METHOD_NOT_FOUND, "Method not found");
@@ -660,5 +800,8 @@ finished:
     reference_value(error_id, NULL);
     text_value->valuestring = (char *)"";
     error_message->valuestring = (char *)"";
+#if C_MCP_ENABLE_VFS
+    resource_text->valuestring = (char *)"";
+#endif
     request_active = 0; arena_used = 0;
 }

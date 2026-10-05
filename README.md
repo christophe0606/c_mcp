@@ -33,6 +33,46 @@ the port. Use `--smoke-test` to check an already running bridge through HTTP.
 
 ## Portable core and optional transports
 
+### Optional read-only resources
+
+`C_MCP_ENABLE_VFS` in `c_mcp_config.h` defaults to 1. Set it to 0 (or configure
+CMake with `-DCMCP_ENABLE_VFS=OFF`) to omit resource storage, response templates,
+handlers and the advertised resource capability. Tools continue to work.
+
+Register exact resource URIs during startup, before `mcp_prepare()`:
+
+```c
+static int read_temperature(const char **message)
+{
+    *message = mcp_arena_strdup("temperature: 24 C");
+    return *message ? 0 : MCP_INTERNAL_ERROR;
+}
+
+/* Check registration and preparation results in application startup code. */
+add_resource("sensor://board/temperature", "Temperature",
+             "Latest board temperature", "text/plain", read_temperature);
+```
+
+The callback receives no arguments and returns static or request-arena text.
+Zero means success; negative status produces a JSON-RPC error, preserving
+protocol error codes and mapping other failures to `MCP_INTERNAL_ERROR`.
+Resource registration strings must remain valid until `free_tools()`, which
+releases both registries. Registration returns NULL for disabled builds,
+duplicates, invalid definitions, late registration or allocation failure.
+
+`resources/list` returns cached metadata; `resources/read` resolves the URI in
+a separate AVL index and invokes its callback. Missing URIs return
+`MCP_RESOURCE_NOT_FOUND` (-32002). This API exposes virtual text only; it does
+not access the host filesystem, support writes, subscriptions or URI templates.
+Core discovery is not paginated. Resource requests use the same bounded arena
+and synchronous response lifetime as tool calls.
+
+The serial bridge discovers resources when firmware advertises them, forwards
+reads and preserves resource error codes. Reconnection refreshes both catalogs
+and sends standard list-change notifications when their definitions change.
+Older tools-only firmware remains supported. If a firmware reboot leaves the
+serial connection healthy, restart the bridge to refresh its cached catalogs.
+
 ### Bounded request memory
 
 Callbacks use `int tool(int argc, const char **returnMessage, const char **args)`.
@@ -120,4 +160,14 @@ core's stdout response support. Embedded applications supply their own input
 loop and may set `CJSON_NESTING_LIMIT` to bound JSON parser recursion.
 `main.c`, `tools.c` and `processing.c` are demo/application files and are
 never compiled into the library.
+
+Run portable core tests (including a separate VFS-disabled executable) and
+hardware-free HTTP bridge integration tests from this repository:
+
+```sh
+cmake -S . -B build-core -DCMCP_BUILD_HTTP=OFF -DCMCP_BUILD_STDIO=OFF -DCMCP_BUILD_TESTS=ON
+cmake --build build-core --config Debug
+ctest --test-dir build-core -C Debug --output-on-failure
+uv run --script tests/test_serial_bridge.py -v
+```
 

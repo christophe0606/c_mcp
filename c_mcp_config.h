@@ -8,6 +8,12 @@
 #ifndef C_MCP_ARENA_SIZE
 #define C_MCP_ARENA_SIZE 32768
 #endif
+// <e> Enable read-only virtual files as MCP resources
+// <i> Set to 0 to omit resource registries, schemas and request handlers.
+#ifndef C_MCP_ENABLE_VFS
+#define C_MCP_ENABLE_VFS 1
+#endif
+// </e>
 // <<< end of configuration section >>>
 
 #endif

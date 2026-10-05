@@ -21,9 +21,19 @@ enum type
 #define MCP_METHOD_NOT_FOUND (-32601)
 #define MCP_INVALID_PARAMS (-32602)
 #define MCP_INTERNAL_ERROR (-32603)
+#define MCP_RESOURCE_NOT_FOUND (-32002)
 
 struct argument;
 struct tool;
+struct mcp_resource;
+typedef int (*mcp_resource_fn)(const char **returnMessage);
+/* Exact URI index, no host filesystem access. Strings remain valid until
+ * free_tools(), which releases both tool and resource startup registries.
+ * Disabled builds return NULL and do not advertise/handle resources. */
+extern struct mcp_resource *add_resource(const char *uri, const char *name,
+    const char *description, const char *mime_type, mcp_resource_fn callback);
+extern size_t mcp_resource_index_height(void);
+extern size_t mcp_resource_lookup_steps(void);
 /* args follow add_argument order: decoded strings, JSON numbers, true/false.
  * Output must be static or arena-backed, valid until dispatch completes.
  * Return 0 on success, a JSON-RPC error code for invalid requests, or another
