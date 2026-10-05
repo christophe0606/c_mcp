@@ -1,4 +1,5 @@
 #include "mcp.h"
+#include "stdio_transport.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -468,15 +469,6 @@ int mcp_prepare(void)
 #define PROTOCOL_VERSION "2025-06-18" // match spec
 
 
-static void send_stdio(const char *s, int cfd)
-{
-    (void)cfd;
-    if (!s) return;
-    fputs(s, stdout);
-    fputc('\n', stdout); // newline = message boundary
-    fflush(stdout);
-}
-
 static void send_json(cJSON *obj, int cfd, mcp_send_fn send)
 {
     size_t available = C_MCP_ARENA_SIZE - arena_used;
@@ -713,12 +705,12 @@ static cJSON *handle_resource_read(cJSON *id, cJSON *params)
 
 void dispatch(const char *line,int cfd)
 {
-    dispatch_with_sender(line, cfd, send_stdio);
+    dispatch_with_sender(line, cfd, mcp_stdio_send);
 }
 
 void dispatch_with_sender(const char *line, int cfd, mcp_send_fn send)
 {
-    if (!send) send = send_stdio;
+    if (!send) send = mcp_stdio_send;
     if (request_active) {
         send("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"Reentrant dispatch is unsupported\"}}", cfd);
         return;

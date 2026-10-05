@@ -378,11 +378,13 @@ extern size_t mcp_heap_allocations(void);
 
 /**
  * \ingroup cmcp_dispatch
- * \brief Dispatch one JSON-RPC message and send the response to stdout.
+ * \brief Dispatch one JSON-RPC message through the default transport hook.
  * \param[in] line Complete, null-terminated JSON text; must not be NULL.
- * \param[in] fd Compatibility parameter, ignored by the stdout sender.
- * \details Writes JSON followed by LF and flushes stdout. Retargeted stdout can
- * provide embedded UART output; the application supplies the input loop.
+ * \param[in] fd Opaque channel passed to mcp_stdio_send(); ignored by its default.
+ * \details The weak mcp_stdio_send() default writes JSON followed by LF and
+ * flushes stdout. An application can override it to use another serial interface;
+ * see stdio_transport.h. The application supplies its input loop or uses the
+ * optional process_stdio() loop.
  * Notifications emit nothing and do not invoke tool/resource callbacks.
  * The request arena has been reset when this function returns.
  * \par Example
@@ -418,7 +420,7 @@ typedef void (*mcp_send_fn)(const char *json, int fd);
  * \brief Dispatch one JSON-RPC message through an application-provided sender.
  * \param[in] line Complete, null-terminated JSON text; must not be NULL.
  * \param[in] fd Opaque transport/channel identifier passed unchanged to send.
- * \param[in] send Synchronous response callback; NULL selects the stdout sender.
+ * \param[in] send Synchronous response callback; NULL selects mcp_stdio_send().
  * \details Handles initialize, ping, tools/list and tools/call, and optionally
  * resources/list and resources/read. Rejects malformed envelopes, trailing input
  * and unsupported methods. Notifications do not invoke tool/resource callbacks.

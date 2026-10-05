@@ -48,7 +48,7 @@ int main(void)
     while ((atomic_load(&done) == 0) && (!g_stop))
     {
 #if defined(MCP_STDIO)
-        process_stdio();
+        if (process_stdio() == MCP_STDIO_EOF) atomic_store(&done, 1);
 #else
         process_http();
 #endif

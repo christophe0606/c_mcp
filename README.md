@@ -141,7 +141,7 @@ uses the heap normally; response helpers return owned objects. Inside dispatch,
 the response helpers return borrowed reusable templates; do not delete or retain
 them. Complete all transport writes before returning from the sender.
 
-The portable core consists of `mcp.c` and `cJSON.c`, with their headers.
+The portable core consists of `mcp.c`, `cJSON.c` and `stdio_transport.c`, with their headers.
 It uses standard C and has no socket, pthread, atomic or POSIX dependency.
 Applications register tools with `add_tool()`, `set_tool_callback()` and
 `add_argument()`; the core now provides `handle_tools_call()`.Arguments arrive in registration order
@@ -150,12 +150,12 @@ the registry. Use `dispatch_with_sender()` to invoke callbacks; direct calls to
 `handle_tools_call()` are internal to an active request.
 The public MCP header supports both C and C++ callers.
 
-`dispatch(line, fd)` writes newline-delimited JSON to stdout (suitable for
-retargeted UART stdio). `dispatch_with_sender(line, fd, callback)` instead
+`dispatch(line, fd)` sends newline-delimited JSON through the weak
+`mcp_stdio_send()` hook (stdout by default). `dispatch_with_sender(line, fd, callback)` instead
 calls `callback(json, fd)` synchronously. The JSON pointer is borrowed for
 the duration of the callback. A NULL JSON pointer denotes a notification:
 stdio emits nothing, while the HTTP transport returns HTTP 202. A NULL
-callback selects stdout. Configure transport selection before using the
+callback selects `mcp_stdio_send()`. Configure transport selection before using the
 demo via `MCP_STDIO` as before; `process_http()` now selects its HTTP sender
 explicitly. Direct HTTP users of `dispatch()` should migrate to
 `dispatch_with_sender()` and supply their response sender.
@@ -164,23 +164,25 @@ Both dispatchers reject malformed envelopes and trailing input, ignore
 notifications without invoking tools, and use null IDs for invalid requests.
 Integer tool arguments advertise the JSON Schema `integer` type.
 
-Linux and macOS builds retain both POSIX transports by default:
+The portable stdio input loop is enabled by default. Linux and macOS builds also
+enable the optional POSIX HTTP transport by default:
 
 ```sh
 cmake -S . -B build
 cmake --build build
 ```
 
-For a portable core-only library (or compile the two core sources directly):
+For a portable library with an application-owned input loop (or compile the
+three core sources directly with `C_MCP_ENABLE_STDIO_LOOP=0`):
 
 ```sh
 cmake -S . -B build-core -DCMCP_BUILD_HTTP=OFF -DCMCP_BUILD_STDIO=OFF
 cmake --build build-core
 ```
 
-`CMCP_BUILD_STDIO` controls only the POSIX `getline` input loop, not the
-core's stdout response support. Embedded applications supply their own input
-loop and may set `CJSON_NESTING_LIMIT` to bound JSON parser recursion.
+`CMCP_BUILD_STDIO` controls the optional input loop, not the weak I/O hooks.
+Embedded applications can use that loop or supply their own line parser, and
+may set `CJSON_NESTING_LIMIT` to bound JSON recursion.
 `main.c`, `tools.c` and `processing.c` are demo/application files and are
 never compiled into the library.
 
@@ -191,6 +193,53 @@ hardware-free HTTP bridge integration tests from this repository:
 cmake -S . -B build-core -DCMCP_BUILD_HTTP=OFF -DCMCP_BUILD_STDIO=OFF -DCMCP_BUILD_TESTS=ON
 cmake --build build-core --config Debug
 ctest --test-dir build-core -C Debug --output-on-failure
+uv run --no-project tests/test_stdio_transport.py build-core/Debug/cmcp_stdio_driver.exe -v
 uv run --script tests/test_serial_bridge.py -v
 ```
+
+## Override the serial interface
+
+`stdio_transport.h` documents four weak hooks: `mcp_stdio_transport_init()`,
+`mcp_stdio_transport_close()`, `mcp_stdio_getchar()` and `mcp_stdio_send()`.
+Their defaults initialize unbuffered stdout, leave stdin/stdout open, read from
+stdin and synchronously write JSON plus LF to stdout. Define strong functions
+with the same signatures in an application source file to replace any hooks.
+The public declarations are not weak, so overrides must not carry a weak attribute.
+
+`c_mcp_compiler.h` uses CMSIS `__WEAK` on Arm when `cmsis_compiler.h` is available.
+For other builds it supports GCC/Clang weak attributes, IAR/legacy Arm weak
+keywords and MSVC linker alternate names. `C_MCP_COMPILER_HEADER` can name a
+compiler header explicitly, or a port can define `C_MCP_WEAK` itself.
+
+```c
+#include "stdio_transport.h"
+/* Implement these board-specific operations in the application. */
+extern int uart_try_get_byte(void); /* Byte or -1 when RX is empty. */
+extern void uart_write_and_wait(const char *text);
+
+int mcp_stdio_getchar(void) {
+    int ch = uart_try_get_byte();
+    return ch < 0 ? MCP_STDIO_NO_DATA : ch;
+}
+void mcp_stdio_send(const char *json, int channel) {
+    (void)channel;
+    if (json) {
+        uart_write_and_wait(json);
+        uart_write_and_wait("\n");
+    }
+}
+```
+
+Read hooks distinguish temporary empty RX (`MCP_STDIO_NO_DATA`) from closure
+(`MCP_STDIO_EOF`) and lost input (`MCP_STDIO_INPUT_LOST`). Writes must finish
+before the sender returns, because its JSON buffer is borrowed request storage.
+An explicit `dispatch_with_sender()` callback takes precedence over the weak sender.
+
+For the optional input loop, call `init_stdio()`, then `process_stdio()` from the
+main loop, and `end_stdio()` at shutdown. `process_stdio()` preserves partial lines,
+accepts CR/LF/CRLF, and discards oversized or corrupted input through the next
+delimiter. Its buffer is configured by `C_MCP_STDIO_LINE_SIZE` (default 4096,
+including the terminating null). No `getline`, POSIX types, request heap or demo
+global stop flag is needed. The application handles the returned EOF status;
+legacy callers should replace their old global `done` check with that status.
 
