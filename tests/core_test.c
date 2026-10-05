@@ -31,20 +31,39 @@ static void exchange(const char *json)
     if (wire[0]) { reply = cJSON_Parse(wire); CHECK(reply); }
 }
 
-cJSON *handle_tools_call(cJSON *id, cJSON *params)
+static int test_callback(int argc, const char **message, const char **args)
 {
-    if (cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(params, "exhaust"))) {
+    CHECK(argc == 1);
+    if (!strcmp(args[0], "-999")) {
         CHECK(mcp_arena_alloc(C_MCP_ARENA_SIZE) == NULL);
-        return err(id, MCP_INTERNAL_ERROR, "Exhausted");
+        *message = "Exhausted"; return MCP_INTERNAL_ERROR;
     }
+    CHECK(!strcmp(args[0], "7"));
     ++calls;
-    return ok(id, create_result_text("called"));
+    *message = "called"; return 0;
+}
+
+static int ordered_callback(int argc, const char **message, const char **args)
+{
+    char *output = mcp_arena_alloc(128);
+    CHECK(argc == 3 && output);
+    snprintf(output, 128, "%s|%s|%s", args[0], args[1], args[2]);
+    *message = output; ++calls; return 0;
+}
+static int failing_callback(int argc, const char **message, const char **args)
+{
+    CHECK(argc == 0 && args == NULL); *message = "Execution failed"; return -1;
+}
+static int invalid_callback(int argc, const char **message, const char **args)
+{
+    (void)argc; (void)message; (void)args; return 0;
 }
 
 int main(void)
 {
     struct tool *tool = add_tool("test", "Test");
     add_argument(tool, "count", TYPE_INT, "Count");
+    CHECK(set_tool_callback(tool, test_callback) == 0);
     CHECK(mcp_prepare() == 0);
     exchange("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}");
     cJSON *result = cJSON_GetObjectItemCaseSensitive(reply, "result");
@@ -55,7 +74,7 @@ int main(void)
     CHECK(cJSON_IsString(type) && strcmp(type->valuestring, "integer") == 0);
     exchange("{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\"}");
     CHECK(sent == 2 && notifications == 1 && calls == 0 && reply == NULL);
-    exchange("{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\"}");
+    exchange("{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"test\",\"arguments\":{\"count\":7}}}");
     CHECK(calls == 1 && cJSON_IsObject(cJSON_GetObjectItemCaseSensitive(reply, "result")));
     exchange("{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"ping\"} trailing");
     CHECK(cJSON_IsNull(cJSON_GetObjectItemCaseSensitive(reply, "id")));
@@ -64,9 +83,9 @@ int main(void)
     {
         int i;
         for (i = 0; i < 1000; ++i)
-            exchange("{\"jsonrpc\":\"2.0\",\"id\":\"escaped\\\"id\",\"method\":\"tools/call\"}");
+            exchange("{\"jsonrpc\":\"2.0\",\"id\":\"escaped\\\"id\",\"method\":\"tools/call\",\"params\":{\"name\":\"test\",\"arguments\":{\"count\":7}}}");
         CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(reply, "id")->valuestring, "escaped\"id") == 0);
-        exchange("{\"jsonrpc\":\"2.0\",\"id\":\"oom\\\"id\",\"method\":\"tools/call\",\"params\":{\"exhaust\":true}}");
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":\"oom\\\"id\",\"method\":\"tools/call\",\"params\":{\"name\":\"test\",\"arguments\":{\"count\":-999}}}");
         CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(reply, "id")->valuestring, "oom\"id") == 0);
         error = cJSON_GetObjectItemCaseSensitive(reply, "error");
         CHECK(cJSON_GetObjectItemCaseSensitive(error, "code")->valueint == MCP_INTERNAL_ERROR);
@@ -92,7 +111,35 @@ int main(void)
     result = cJSON_GetObjectItemCaseSensitive(reply, "result");
     CHECK(cJSON_GetArraySize(cJSON_GetObjectItemCaseSensitive(result, "tools")) == 0);
     cJSON_Delete(reply);
+    reply = NULL;
     free_tools();
+    {
+        int previous;
+        struct tool *ordered = add_tool("ordered", "Argument order");
+        add_argument(ordered, "text", TYPE_STR, "Text");
+        add_argument(ordered, "number", TYPE_FLOAT, "Number");
+        add_argument(ordered, "flag", TYPE_BOOL, "Flag");
+        CHECK(set_tool_callback(ordered, ordered_callback) == 0);
+        CHECK(set_tool_callback(add_tool("failure", "Execution error"), failing_callback) == 0);
+        CHECK(set_tool_callback(add_tool("invalid", "No output"), invalid_callback) == 0);
+        CHECK(add_tool("missing", "No callback"));
+        CHECK(mcp_prepare() == 0);
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":20,\"method\":\"tools/call\",\"params\":{\"name\":\"ordered\",\"arguments\":{\"flag\":false,\"number\":2.5,\"text\":\"payload\"}}}");
+        CHECK(strstr(wire, "payload|2.5|false"));
+        previous = calls;
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":21,\"method\":\"tools/call\",\"params\":{\"name\":\"ordered\",\"arguments\":{\"flag\":1,\"number\":2.5,\"text\":\"payload\"}}}");
+        CHECK(calls == previous && strstr(wire, "-32602"));
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":22,\"method\":\"tools/call\",\"params\":{\"name\":\"failure\"}}");
+        CHECK(strstr(wire, "\"isError\":true") && strstr(wire, "Execution failed"));
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":23,\"method\":\"tools/call\",\"params\":{\"name\":\"ordered\",\"arguments\":{\"text\":\"next\",\"number\":-3,\"flag\":true}}}");
+        CHECK(strstr(wire, "next|-3|true") && !strstr(wire, "isError"));
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":24,\"method\":\"tools/call\",\"params\":{\"name\":\"invalid\"}}");
+        CHECK(strstr(wire, "-32603"));
+        exchange("{\"jsonrpc\":\"2.0\",\"id\":25,\"method\":\"tools/call\",\"params\":{\"name\":\"missing\"}}");
+        CHECK(strstr(wire, "-32603"));
+        free_tools();
+        cJSON_Delete(reply); reply = NULL;
+    }
     {
         char names[257][32];
         struct tool *registered[257];

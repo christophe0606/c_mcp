@@ -35,6 +35,20 @@ the port. Use `--smoke-test` to check an already running bridge through HTTP.
 
 ### Bounded request memory
 
+Callbacks use `int tool(int argc, const char **returnMessage, const char **args)`.
+The AVL lookup selects the stored function pointer directly. The core validates
+required arguments, types, finite numbers and integral integers before invoking
+the callback; unknown and duplicate input keys are rejected. Strings are decoded,
+numbers use JSON-compatible text, and booleans are `true`/`false`. Callbacks own
+range/enum validation. The output pointer must reference static or arena memory;
+use `mcp_arena_alloc()` / `mcp_arena_strdup()` for varying text. Zero means success;
+JSON-RPC error codes produce protocol errors, other negative values produce an
+MCP result with `isError: true`. Missing output and positive statuses are errors.
+
+`set_boolean_argument_alias()` supports an older boolean input for a canonical
+string argument, mapping true/false to registered static strings. The canonical
+schema stays unchanged, and clients cannot supply both names.
+
 Tool names are indexed by an intrusive AVL tree, with one node in each tool
 allocation. Sorted, reverse and arbitrary registration orders remain balanced.
 `find_tool()` takes O(log M) string comparisons for M tools (each comparison is
@@ -65,8 +79,12 @@ them. Complete all transport writes before returning from the sender.
 
 The portable core consists of `mcp.c` and `cJSON.c`, with their headers.
 It uses standard C and has no socket, pthread, atomic or POSIX dependency.
-Applications provide `handle_tools_call()` and register their tools using
-`add_tool()` / `add_argument()`; `free_tools()` releases the registry.
+Applications register tools with `add_tool()`, `set_tool_callback()` and
+`add_argument()`; the core now provides `handle_tools_call()`. Remove the old
+application dispatcher when migrating. Arguments arrive in registration order
+(older prepend/reverse-registration behavior is replaced). `free_tools()` releases
+the registry. Use `dispatch_with_sender()` to invoke callbacks; direct calls to
+`handle_tools_call()` are internal to an active request.
 The public MCP header supports both C and C++ callers.
 
 `dispatch(line, fd)` writes newline-delimited JSON to stdout (suitable for

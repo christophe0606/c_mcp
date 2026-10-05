@@ -5,13 +5,14 @@
 #include <stdint.h>
 #include <limits.h>
 #include <ctype.h>
+#include <math.h>
 #include "mcp_index.h"
 
 /* The union supplies alignment for every scalar used by the portable core. */
 static union { long double ld; void *ptr; long long integer;
     unsigned char bytes[C_MCP_ARENA_SIZE]; } arena;
 static size_t arena_used, arena_peak, heap_allocations;
-static int request_active, arena_failed, prepared, hooks_installed, heap_failed;
+static int request_active, arena_failed, prepared, hooks_installed, heap_failed, registration_failed;
 static cJSON *tools_result, *success_template, *error_template, *text_template;
 static cJSON *success_id, *success_value, *error_id, *error_code, *error_message, *text_value;
 
@@ -154,6 +155,8 @@ struct argument
     enum type type;          // "str", "int", "float", "bool"
     const char *description; // optional
     struct argument *next;
+    const char *alias;
+    const char *alias_true, *alias_false;
 };
 
 struct tool
@@ -163,6 +166,7 @@ struct tool
     const char *description;
     struct argument *arguments; // JSON schema as string
     struct tool *next;
+    mcp_tool_fn callback;
 };
 
 static struct tool *tool_list = NULL; // linked list of registered tools
@@ -182,13 +186,38 @@ void add_argument(struct tool *tool,
                   const char *description)
 {
     if (prepared || request_active) return;
-    struct argument *arg = malloc(sizeof(struct argument));
-    if (!tool || !arg) { free(arg); return; }
+    struct argument *arg, **tail;
+    if (!tool || !name || !*name || type < TYPE_STR || type > TYPE_BOOL) { registration_failed = 1; return; }
+    for (arg = tool->arguments; arg; arg = arg->next)
+        if (!strcmp(arg->name, name) || (arg->alias && !strcmp(arg->alias, name))) { registration_failed = 1; return; }
+    arg = malloc(sizeof(struct argument));
+    if (!arg) { registration_failed = 1; return; }
     arg->name = name;
     arg->type = type;
     arg->description = description;
-    arg->next = tool->arguments;
-    tool->arguments = arg;
+    arg->next = NULL; arg->alias = NULL;
+    tail = &tool->arguments;
+    while (*tail) tail = &(*tail)->next;
+    *tail = arg;
+}
+
+int set_tool_callback(struct tool *tool, mcp_tool_fn callback)
+{
+    if (!tool || !callback || prepared || request_active) return -1;
+    tool->callback = callback; return 0;
+}
+
+int set_boolean_argument_alias(struct tool *tool, const char *name, const char *alias,
+                               const char *true_value, const char *false_value)
+{
+    struct argument *arg, *target = NULL;
+    if (!tool || !name || !alias || !*alias || !true_value || !false_value || prepared || request_active) return -1;
+    for (arg = tool->arguments; arg; arg = arg->next) {
+        if (!strcmp(arg->name, alias) || (arg->alias && !strcmp(arg->alias, alias))) return -1;
+        if (!strcmp(arg->name, name)) target = arg;
+    }
+    if (!target || target->type != TYPE_STR) return -1;
+    target->alias = alias; target->alias_true = true_value; target->alias_false = false_value; return 0;
 }
 
 void free_arguments(struct argument *arg_list)
@@ -208,10 +237,11 @@ struct tool *add_tool(const char *name,
     if (prepared || request_active || !name || !*name || find_tool(name)) return NULL;
     install_hooks();
     struct tool *t = malloc(sizeof(struct tool));
-    if (!t) return NULL;
+    if (!t) { registration_failed = 1; return NULL; }
     t->name = name;
     t->description = description;
     t->arguments = NULL;
+    t->callback = NULL;
     t->index.key = name; t->index.value = t;
     t->index.left = t->index.right = NULL; t->index.height = 1;
     tool_index = index_insert(tool_index, &t->index);
@@ -227,7 +257,7 @@ void free_tools()
     cJSON_Delete(success_template); success_template = NULL;
     cJSON_Delete(error_template); error_template = NULL;
     cJSON_Delete(text_template); text_template = NULL;
-    prepared = 0;
+    prepared = 0; registration_failed = 0;
     struct tool *t = tool_list;
     while (t)
     {
@@ -291,7 +321,7 @@ int mcp_prepare(void)
     struct tool *tool;
     cJSON *list;
     if (prepared) return 0;
-    if (request_active) return -1;
+    if (request_active || registration_failed) return -1;
     install_hooks();
     /* A failed preparation may be retried without leaking partial templates. */
     cJSON_Delete(tools_result); cJSON_Delete(success_template);
@@ -486,6 +516,69 @@ cJSON *create_result_text(const char *text)
     cJSON_AddItemToArray(content, item);
     cJSON_AddItemToObject(res, "content", content);
     return res;
+}
+
+static const char *argument_text(const cJSON *value, enum type type)
+{
+    char number[32];
+    if (type == TYPE_STR) return cJSON_IsString(value) ? value->valuestring : NULL;
+    if (type == TYPE_BOOL) return cJSON_IsBool(value) ? (cJSON_IsTrue(value) ? "true" : "false") : NULL;
+    if (!cJSON_IsNumber(value) || !isfinite(value->valuedouble) ||
+        (type == TYPE_INT && floor(value->valuedouble) != value->valuedouble)) return NULL;
+    snprintf(number, sizeof(number), "%.17g", value->valuedouble);
+    return mcp_arena_strdup(number);
+}
+
+cJSON *handle_tools_call(cJSON *id, cJSON *params)
+{
+    struct tool *tool;
+    struct argument *arg;
+    const cJSON *name = cJSON_GetObjectItemCaseSensitive(params, "name");
+    const cJSON *arguments = cJSON_GetObjectItemCaseSensitive(params, "arguments");
+    const cJSON *input;
+    const char **argv = NULL, *message = NULL;
+    int argc = 0, position = 0, status;
+    if (!cJSON_IsObject(params) || !cJSON_IsString(name) || (arguments && !cJSON_IsObject(arguments)))
+        return err(id, MCP_INVALID_PARAMS, "Expected tool name and optional arguments object");
+    tool = find_tool(name->valuestring);
+    if (!tool) return err(id, MCP_INVALID_PARAMS, "Unknown tool");
+    if (!tool->callback) return err(id, MCP_INTERNAL_ERROR, "Tool has no callback");
+    for (arg = tool->arguments; arg; arg = arg->next) ++argc;
+    if (argc) {
+        argv = (const char **)mcp_arena_alloc((size_t)argc * sizeof(*argv));
+        if (!argv) return err(id, MCP_INTERNAL_ERROR, "Request arena exhausted");
+    }
+    /* Reject undeclared and duplicate input keys before calling any tool. */
+    for (input = arguments ? arguments->child : NULL; input; input = input->next) {
+        for (arg = tool->arguments; arg; arg = arg->next)
+            if (!strcmp(input->string, arg->name) || (arg->alias && !strcmp(input->string, arg->alias))) break;
+        if (!arg || cJSON_GetObjectItemCaseSensitive(arguments, input->string) != input)
+            return err(id, MCP_INVALID_PARAMS, "Unknown or duplicate tool argument");
+    }
+    for (arg = tool->arguments; arg; arg = arg->next) {
+        const cJSON *value = cJSON_GetObjectItemCaseSensitive(arguments, arg->name);
+        const cJSON *alias = arg->alias ? cJSON_GetObjectItemCaseSensitive(arguments, arg->alias) : NULL;
+        if (value && alias) return err(id, MCP_INVALID_PARAMS, "Use the canonical argument or its alias, not both");
+        argv[position] = alias ? (cJSON_IsBool(alias) ? (cJSON_IsTrue(alias) ? arg->alias_true : arg->alias_false) : NULL) :
+                                 argument_text(value, arg->type);
+        if (!argv[position++]) return err(id, arena_failed ? MCP_INTERNAL_ERROR : MCP_INVALID_PARAMS,
+                                         arena_failed ? "Request arena exhausted" : "Missing argument or incorrect type");
+    }
+    status = tool->callback(argc, &message, argv);
+    if (status > 0 || !message) return err(id, MCP_INTERNAL_ERROR, "Invalid tool callback result");
+    if (status <= MCP_INVALID_REQUEST && status >= MCP_PARSE_ERROR)
+        return err(id, status, message);
+    {
+        cJSON *result = create_result_text(message);
+        if (status < 0 && result) {
+            /* Reference content without appending to the cached child's chain. */
+            cJSON *owned = cJSON_CreateObject();
+            cJSON_AddItemReferenceToObject(owned, "content", result->child);
+            cJSON_AddBoolToObject(owned, "isError", 1);
+            result = owned;
+        }
+        return ok(id, result);
+    }
 }
 
 void dispatch(const char *line,int cfd)

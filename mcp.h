@@ -24,6 +24,18 @@ enum type
 
 struct argument;
 struct tool;
+/* args follow add_argument order: decoded strings, JSON numbers, true/false.
+ * Output must be static or arena-backed, valid until dispatch completes.
+ * Return 0 on success, a JSON-RPC error code for invalid requests, or another
+ * negative value for an MCP tool execution error (isError=true).
+ */
+typedef int (*mcp_tool_fn)(int argc, const char **returnMessage, const char **args);
+extern int set_tool_callback(struct tool *tool, mcp_tool_fn callback);
+/* Alternative input name/type for a required argument; schema stays canonical.
+ * Supplying both canonical and alias inputs is invalid. */
+extern int set_boolean_argument_alias(struct tool *tool, const char *name,
+                                     const char *alias, const char *true_value,
+                                     const char *false_value);
 extern struct tool *find_tool(const char *name);
 extern size_t mcp_tool_lookup_steps(void);
 extern size_t mcp_tool_index_height(void);
