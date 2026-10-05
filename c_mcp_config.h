@@ -14,16 +14,16 @@
 #define C_MCP_ENABLE_VFS 1
 #endif
 // </e>
-// <e> Enable the portable stdio input loop
+// <e> Enable the portable serial input loop
 // <i> Disable when the application provides its own line parser/input loop.
-// <i> Weak I/O hooks remain available even when the input loop is disabled.
-#ifndef C_MCP_ENABLE_STDIO_LOOP
-#define C_MCP_ENABLE_STDIO_LOOP 1
+// <i> I/O functions remain available even when the input loop is disabled.
+#ifndef C_MCP_ENABLE_SERIAL_LOOP
+#define C_MCP_ENABLE_SERIAL_LOOP 1
 #endif
-// <o> Stdio input line buffer size in bytes <64-1048576>
+// <o> Serial input line buffer size in bytes <64-1048576>
 // <i> Includes the terminating null byte. Oversized/damaged lines are discarded.
-#ifndef C_MCP_STDIO_LINE_SIZE
-#define C_MCP_STDIO_LINE_SIZE 4096
+#ifndef C_MCP_SERIAL_LINE_SIZE
+#define C_MCP_SERIAL_LINE_SIZE 4096
 #endif
 // </e>
 // <<< end of configuration section >>>

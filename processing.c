@@ -1,4 +1,0 @@
-void processing_loop()
-{
-    
-}

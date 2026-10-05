@@ -1,2 +1,0 @@
-{"jsonrpc": "2.0","method": "initialize","id": 1}
-{"jsonrpc": "2.0","method": "tools/list","id": 1}

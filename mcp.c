@@ -1,5 +1,5 @@
 #include "mcp.h"
-#include "stdio_transport.h"
+#include "serial_transport.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -532,20 +532,6 @@ cJSON *err(cJSON *id, int code, const char *msg)
     return m;
 }
 
-cJSON *handle_fetch()
-{
-    cJSON *result = cJSON_CreateObject();
-    cJSON_AddStringToObject(result, "mcpVersion", "0.1");
-    cJSON_AddStringToObject(result, "name", "hyperbolic");
-    cJSON_AddStringToObject(result, "version", "0.1.0");
-    cJSON *cap = cJSON_CreateObject();
-    cJSON_AddBoolToObject(cap, "tools", 1);
-    cJSON_AddItemToObject(result, "capabilities", cap);
-
-    return result;
-
-}
-
 static cJSON *handle_initialize(cJSON *id, cJSON *params)
 {
     (void)params;
@@ -705,12 +691,12 @@ static cJSON *handle_resource_read(cJSON *id, cJSON *params)
 
 void dispatch(const char *line,int cfd)
 {
-    dispatch_with_sender(line, cfd, mcp_stdio_send);
+    dispatch_with_sender(line, cfd, mcp_serial_send);
 }
 
 void dispatch_with_sender(const char *line, int cfd, mcp_send_fn send)
 {
-    if (!send) send = mcp_stdio_send;
+    if (!send) send = mcp_serial_send;
     if (request_active) {
         send("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"Reentrant dispatch is unsupported\"}}", cfd);
         return;

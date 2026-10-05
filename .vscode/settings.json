@@ -6,13 +6,11 @@
         "utility": "c",
         "typeinfo": "c",
         "stdio.h": "c",
-        "config.h": "c",
-        "stdatomic.h": "c",
+        "c_mcp_config.h": "c",
         "string.h": "c",
         "cjson.h": "c",
         "stdbool.h": "c",
-        "http.h": "c",
         "stdlib.h": "c",
-        "stdio_transport.h": "c"
+        "serial_transport.h": "c"
     }
 }

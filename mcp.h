@@ -380,11 +380,11 @@ extern size_t mcp_heap_allocations(void);
  * \ingroup cmcp_dispatch
  * \brief Dispatch one JSON-RPC message through the default transport hook.
  * \param[in] line Complete, null-terminated JSON text; must not be NULL.
- * \param[in] fd Opaque channel passed to mcp_stdio_send(); ignored by its default.
- * \details The weak mcp_stdio_send() default writes JSON followed by LF and
- * flushes stdout. An application can override it to use another serial interface;
- * see stdio_transport.h. The application supplies its input loop or uses the
- * optional process_stdio() loop.
+ * \param[in] fd Opaque channel passed to mcp_serial_send(); ignored by its default.
+ * \details The mcp_serial_send() default writes JSON followed by LF and flushes
+ * stdout. On CMSIS boards it is weak and can be overridden for another interface;
+ * see serial_transport.h. The application supplies its input loop or uses the
+ * optional process_serial() loop.
  * Notifications emit nothing and do not invoke tool/resource callbacks.
  * The request arena has been reset when this function returns.
  * \par Example
@@ -403,7 +403,7 @@ extern void dispatch(const char *line,int fd);
  * \warning Complete transmission before returning. Do not retain the pointer or
  * dispatch another request from this callback. An asynchronous/DMA transport must
  * wait for completion or copy into transport-owned storage first.
- * \details UART/stdout emits nothing for NULL; an HTTP sender may return HTTP 202.
+ * \details Serial/stdout senders emit nothing for NULL.
  * \par Example
  * \code{.c}
  * #include <stdio.h>
@@ -420,7 +420,7 @@ typedef void (*mcp_send_fn)(const char *json, int fd);
  * \brief Dispatch one JSON-RPC message through an application-provided sender.
  * \param[in] line Complete, null-terminated JSON text; must not be NULL.
  * \param[in] fd Opaque transport/channel identifier passed unchanged to send.
- * \param[in] send Synchronous response callback; NULL selects mcp_stdio_send().
+ * \param[in] send Synchronous response callback; NULL selects mcp_serial_send().
  * \details Handles initialize, ping, tools/list and tools/call, and optionally
  * resources/list and resources/read. Rejects malformed envelopes, trailing input
  * and unsupported methods. Notifications do not invoke tool/resource callbacks.
@@ -596,21 +596,6 @@ extern cJSON *err(cJSON *id, int code, const char *msg);
  * \endcode
  */
 extern cJSON *create_result_text(const char *text);
-/**
- * \ingroup cmcp_responses
- * \brief Build legacy server metadata for the optional HTTP transport.
- * \return Newly constructed metadata: heap-owned outside dispatch, request-arena
- *         lifetime inside dispatch.
- * \details Returns mcpVersion, name, version and a boolean tools capability.
- * This is legacy metadata, not the standard initialize result or tools/list
- * schema. dispatch() does not route it as a JSON-RPC method.
- * \par Example
- * \code{.c}
- * cJSON *metadata = handle_fetch(); // Outside dispatch.
- * cJSON_Delete(metadata);
- * \endcode
- */
-extern cJSON *handle_fetch();
 /**
  * \ingroup cmcp_responses
  * \brief Internal tools/call handler retained in the public header for compatibility.

@@ -2,6 +2,9 @@
 
 MCP parser library that provides MCP protocol on serial port.
 
+The C library supports serial transport. The Python host bridge below exposes
+that serial connection as a shared HTTP MCP endpoint.
+
 Focus is development, debug and tests.
 This library is not intended for use in a final product.
 
@@ -141,7 +144,7 @@ uses the heap normally; response helpers return owned objects. Inside dispatch,
 the response helpers return borrowed reusable templates; do not delete or retain
 them. Complete all transport writes before returning from the sender.
 
-The portable core consists of `mcp.c`, `cJSON.c` and `stdio_transport.c`, with their headers.
+The portable core consists of `mcp.c`, `cJSON.c` and `serial_transport.c`, with their headers.
 It uses standard C and has no socket, pthread, atomic or POSIX dependency.
 Applications register tools with `add_tool()`, `set_tool_callback()` and
 `add_argument()`; the core now provides `handle_tools_call()`.Arguments arrive in registration order
@@ -150,22 +153,18 @@ the registry. Use `dispatch_with_sender()` to invoke callbacks; direct calls to
 `handle_tools_call()` are internal to an active request.
 The public MCP header supports both C and C++ callers.
 
-`dispatch(line, fd)` sends newline-delimited JSON through the weak
-`mcp_stdio_send()` hook (stdout by default). `dispatch_with_sender(line, fd, callback)` instead
+`dispatch(line, fd)` sends newline-delimited JSON through the
+`mcp_serial_send()` hook (stdout by default). `dispatch_with_sender(line, fd, callback)` instead
 calls `callback(json, fd)` synchronously. The JSON pointer is borrowed for
 the duration of the callback. A NULL JSON pointer denotes a notification:
-stdio emits nothing, while the HTTP transport returns HTTP 202. A NULL
-callback selects `mcp_stdio_send()`. Configure transport selection before using the
-demo via `MCP_STDIO` as before; `process_http()` now selects its HTTP sender
-explicitly. Direct HTTP users of `dispatch()` should migrate to
-`dispatch_with_sender()` and supply their response sender.
+the default serial sender emits nothing. A NULL callback selects
+`mcp_serial_send()`.
 
 Both dispatchers reject malformed envelopes and trailing input, ignore
 notifications without invoking tools, and use null IDs for invalid requests.
 Integer tool arguments advertise the JSON Schema `integer` type.
 
-The portable stdio input loop is enabled by default. Linux and macOS builds also
-enable the optional POSIX HTTP transport by default:
+The portable serial input loop, using stdio by default, is enabled by default:
 
 ```sh
 cmake -S . -B build
@@ -173,55 +172,56 @@ cmake --build build
 ```
 
 For a portable library with an application-owned input loop (or compile the
-three core sources directly with `C_MCP_ENABLE_STDIO_LOOP=0`):
+three core sources directly with `C_MCP_ENABLE_SERIAL_LOOP=0`):
 
 ```sh
-cmake -S . -B build-core -DCMCP_BUILD_HTTP=OFF -DCMCP_BUILD_STDIO=OFF
+cmake -S . -B build-core -DCMCP_BUILD_SERIAL=OFF
 cmake --build build-core
 ```
 
-`CMCP_BUILD_STDIO` controls the optional input loop, not the weak I/O hooks.
+`CMCP_BUILD_SERIAL` controls the optional input loop, not the I/O functions.
 Embedded applications can use that loop or supply their own line parser, and
 may set `CJSON_NESTING_LIMIT` to bound JSON recursion.
-`main.c`, `tools.c` and `processing.c` are demo/application files and are
-never compiled into the library.
+Test fixtures, test sources and test target definitions live in `tests/`.
+The library supplies no application `main()`; applications register their own
+tools and run their input loop.
 
-Run portable core tests (including a separate VFS-disabled executable) and
-hardware-free HTTP bridge integration tests from this repository:
+Run the portable core and serial tests (including a VFS-disabled executable)
+from this repository. CTest also runs the default stdio fixture through Python;
+Python 3 is required only when building tests. The separate bridge tests exercise
+the host Python HTTP endpoint without hardware:
 
 ```sh
-cmake -S . -B build-core -DCMCP_BUILD_HTTP=OFF -DCMCP_BUILD_STDIO=OFF -DCMCP_BUILD_TESTS=ON
+cmake -S . -B build-core -DCMCP_BUILD_SERIAL=OFF -DCMCP_BUILD_TESTS=ON
 cmake --build build-core --config Debug
 ctest --test-dir build-core -C Debug --output-on-failure
-uv run --no-project tests/test_stdio_transport.py build-core/Debug/cmcp_stdio_driver.exe -v
 uv run --script tests/test_serial_bridge.py -v
 ```
 
 ## Override the serial interface
 
-`stdio_transport.h` documents four weak hooks: `mcp_stdio_transport_init()`,
-`mcp_stdio_transport_close()`, `mcp_stdio_getchar()` and `mcp_stdio_send()`.
+`serial_transport.h` documents four I/O functions: `mcp_serial_transport_init()`,
+`mcp_serial_transport_close()`, `mcp_serial_getchar()` and `mcp_serial_send()`.
 Their defaults initialize unbuffered stdout, leave stdin/stdout open, read from
-stdin and synchronously write JSON plus LF to stdout. Define strong functions
-with the same signatures in an application source file to replace any hooks.
-The public declarations are not weak, so overrides must not carry a weak attribute.
-
-`c_mcp_compiler.h` uses CMSIS `__WEAK` on Arm when `cmsis_compiler.h` is available.
-For other builds it supports GCC/Clang weak attributes, IAR/legacy Arm weak
-keywords and MSVC linker alternate names. `C_MCP_COMPILER_HEADER` can name a
-compiler header explicitly, or a port can define `C_MCP_WEAK` itself.
+stdin and synchronously write JSON plus LF to stdout. On boards,
+`serial_transport.c` includes the available `cmsis_compiler.h` and marks its
+defaults with CMSIS `__WEAK`. Define strong functions with the same signatures
+in a board application source file to replace any hooks. The public declarations
+are not weak, so overrides must not carry a weak attribute. Linux, macOS and
+Windows builds use ordinary stdio definitions without weak symbols or linker
+aliases. The UART override example below is for CMSIS boards.
 
 ```c
-#include "stdio_transport.h"
+#include "serial_transport.h"
 /* Implement these board-specific operations in the application. */
 extern int uart_try_get_byte(void); /* Byte or -1 when RX is empty. */
 extern void uart_write_and_wait(const char *text);
 
-int mcp_stdio_getchar(void) {
+int mcp_serial_getchar(void) {
     int ch = uart_try_get_byte();
-    return ch < 0 ? MCP_STDIO_NO_DATA : ch;
+    return ch < 0 ? MCP_SERIAL_NO_DATA : ch;
 }
-void mcp_stdio_send(const char *json, int channel) {
+void mcp_serial_send(const char *json, int channel) {
     (void)channel;
     if (json) {
         uart_write_and_wait(json);
@@ -230,16 +230,15 @@ void mcp_stdio_send(const char *json, int channel) {
 }
 ```
 
-Read hooks distinguish temporary empty RX (`MCP_STDIO_NO_DATA`) from closure
-(`MCP_STDIO_EOF`) and lost input (`MCP_STDIO_INPUT_LOST`). Writes must finish
+Read hooks distinguish temporary empty RX (`MCP_SERIAL_NO_DATA`) from closure
+(`MCP_SERIAL_EOF`) and lost input (`MCP_SERIAL_INPUT_LOST`). Writes must finish
 before the sender returns, because its JSON buffer is borrowed request storage.
-An explicit `dispatch_with_sender()` callback takes precedence over the weak sender.
+An explicit `dispatch_with_sender()` callback takes precedence over the default sender.
 
-For the optional input loop, call `init_stdio()`, then `process_stdio()` from the
-main loop, and `end_stdio()` at shutdown. `process_stdio()` preserves partial lines,
+For the optional input loop, call `init_serial()`, then `process_serial()` from the
+main loop, and `end_serial()` at shutdown. `process_serial()` preserves partial lines,
 accepts CR/LF/CRLF, and discards oversized or corrupted input through the next
-delimiter. Its buffer is configured by `C_MCP_STDIO_LINE_SIZE` (default 4096,
-including the terminating null). No `getline`, POSIX types, request heap or demo
-global stop flag is needed. The application handles the returned EOF status;
-legacy callers should replace their old global `done` check with that status.
+delimiter. Its buffer is configured by `C_MCP_SERIAL_LINE_SIZE` (default 4096,
+including the terminating null). The loop uses no request heap or POSIX APIs.
+The application handles the returned EOF status.
 
