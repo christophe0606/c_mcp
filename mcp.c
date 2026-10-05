@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <limits.h>
+#include <ctype.h>
 
 /* The union supplies alignment for every scalar used by the portable core. */
 static union { long double ld; void *ptr; long long integer;
@@ -78,6 +79,72 @@ static void reference_value(cJSON *slot, const cJSON *value)
     else slot->type = cJSON_NULL;
     slot->type |= cJSON_IsReference | cJSON_StringIsConst;
     slot->string = key; slot->next = next; slot->prev = prev;
+}
+
+static const char *skip_space(const char *p)
+{
+    while (*p && isspace((unsigned char)*p)) ++p;
+    return p;
+}
+
+static const char *string_end(const char *p)
+{
+    if (*p++ != '"') return NULL;
+    while (*p) {
+        if (*p == '"') return p + 1;
+        if (*p++ == '\\') { if (!*p) return NULL; ++p; }
+    }
+    return NULL;
+}
+
+/* Find and parse only the top-level ID before parsing the full request. cJSON
+ * deletes its partial root on OOM; this independent arena copy retains the ID
+ * needed by a transport to correlate the exhaustion error. This lexical pass
+ * never invokes callbacks, and malformed JSON still gets a null-ID parse error. */
+static cJSON *preserve_request_id(const char *line)
+{
+    const char *p = skip_space(line);
+    if (*p++ != '{') return NULL;
+    while (*(p = skip_space(p)) && *p != '}') {
+        const char *key = p, *end = string_end(p), *value;
+        int is_id;
+        if (!end) return NULL;
+        is_id = end - key == 4 && memcmp(key, "\"id\"", 4) == 0;
+        if (!is_id && memchr(key, '\\', (size_t)(end - key))) {
+            cJSON *decoded = cJSON_ParseWithLengthOpts(key, (size_t)(end - key), NULL, 0);
+            is_id = cJSON_IsString(decoded) && strcmp(decoded->valuestring, "id") == 0;
+            cJSON_Delete(decoded);
+        }
+        p = skip_space(end);
+        if (*p++ != ':') return NULL;
+        value = p = skip_space(p);
+        if (*p == '"') {
+            p = string_end(p);
+            if (!p) return NULL;
+        } else if (*p == '{' || *p == '[') {
+            unsigned depth = 0;
+            do {
+                if (*p == '"') { p = string_end(p); if (!p) return NULL; continue; }
+                if (*p == '{' || *p == '[') ++depth;
+                if (*p == '}' || *p == ']') --depth;
+                ++p;
+            } while (*p && depth);
+            if (depth) return NULL;
+        } else {
+            while (*p && *p != ',' && *p != '}') ++p;
+        }
+        if (is_id) {
+            const char *parsed_end = NULL;
+            cJSON *id = cJSON_ParseWithLengthOpts(value, (size_t)(p - value), &parsed_end, 0);
+            if (id && parsed_end && skip_space(parsed_end) == p &&
+                (cJSON_IsString(id) || cJSON_IsNumber(id) || cJSON_IsNull(id))) return id;
+            return NULL;
+        }
+        p = skip_space(p);
+        if (*p == ',') ++p;
+        else return NULL;
+    }
+    return NULL;
 }
 
 struct argument
@@ -424,10 +491,12 @@ void dispatch_with_sender(const char *line, int cfd, mcp_send_fn send)
     }
     arena_used = 0; arena_failed = 0; request_active = 1;
     reference_value(error_id, NULL);
+    cJSON *saved_id = preserve_request_id(line);
     cJSON *root = cJSON_ParseWithOpts(line, NULL, 1);
     if (!root)
     {
-        cJSON *e = err(NULL, MCP_PARSE_ERROR, "Parse error");
+        cJSON *e = arena_failed ? err(saved_id, MCP_INTERNAL_ERROR, "Request arena exhausted") :
+                                 err(NULL, MCP_PARSE_ERROR, "Parse error");
         send_json(e,cfd,send);
         goto finished;
     }

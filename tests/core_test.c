@@ -79,6 +79,7 @@ int main(void)
         strcpy(large + n + C_MCP_ARENA_SIZE, "\"}");
         exchange(large);
         free(large);
+        CHECK(cJSON_GetObjectItemCaseSensitive(reply, "id")->valueint == 9);
         error = cJSON_GetObjectItemCaseSensitive(reply, "error");
         CHECK(cJSON_GetObjectItemCaseSensitive(error, "code")->valueint == MCP_INTERNAL_ERROR);
         exchange("{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"ping\"}");
