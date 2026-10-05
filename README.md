@@ -70,8 +70,22 @@ and synchronous response lifetime as tool calls.
 The serial bridge discovers resources when firmware advertises them, forwards
 reads and preserves resource error codes. Reconnection refreshes both catalogs
 and sends standard list-change notifications when their definitions change.
-Older tools-only firmware remains supported. If a firmware reboot leaves the
-serial connection healthy, restart the bridge to refresh its cached catalogs.
+Older tools-only firmware remains supported. Recovery depends on what happens
+to the USB-to-UART connection:
+
+* If a board reboot or power cycle disconnects the serial device, the bridge
+  automatically reconnects, rediscovers both catalogs and notifies clients
+  when their definitions changed. No bridge restart is needed.
+* An MCU-only reset (for example, a debugger reset after flashing) can leave
+  the separately powered USB-to-UART adapter connected and the host serial
+  handle open. If UART requests continue to succeed, the bridge cannot detect
+  that reset and keeps its cached catalogs. Restart the bridge if the new
+  firmware changed the tools, resources or their schemas.
+* If a UART request fails or times out during that MCU reset, automatic
+  reconnection and rediscovery also occur. Uncertain requests are never replayed.
+
+The distinction is whether the serial connection actually disconnects or fails,
+not just whether the reset is called a board reboot or an MCU reset.
 
 ### Bounded request memory
 
