@@ -1,6 +1,7 @@
 #ifndef mcp_h
 #define mcp_h
 #include "cJSON.h"
+#include "c_mcp_config.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23,6 +24,18 @@ enum type
 
 struct argument;
 struct tool;
+
+/* Call once after registration, before accepting requests. Dispatch is single
+ * threaded and non-reentrant. cJSON hooks are process-wide: do not replace them
+ * or use cJSON concurrently with dispatch. Registration closes at preparation.
+ * free_tools() permits a fresh startup/registration phase.
+ */
+extern int mcp_prepare(void);
+extern void *mcp_arena_alloc(size_t size);
+extern char *mcp_arena_strdup(const char *text);
+extern size_t mcp_arena_used(void);
+extern size_t mcp_arena_high_water(void);
+extern size_t mcp_heap_allocations(void);
 
 extern void dispatch(const char *line,int fd);
 /* The callback consumes the JSON synchronously; it must not retain the pointer.

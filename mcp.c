@@ -2,6 +2,83 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
+
+/* The union supplies alignment for every scalar used by the portable core. */
+static union { long double ld; void *ptr; long long integer;
+    unsigned char bytes[C_MCP_ARENA_SIZE]; } arena;
+static size_t arena_used, arena_peak, heap_allocations;
+static int request_active, arena_failed, prepared, hooks_installed, heap_failed;
+static cJSON *tools_result, *success_template, *error_template, *text_template;
+static cJSON *success_id, *success_value, *error_id, *error_code, *error_message, *text_value;
+
+void *mcp_arena_alloc(size_t size)
+{
+    /* Align by the union's alignment using a small portable alignment probe. */
+    struct alignment_probe { char byte; union { long double ld; void *ptr; long long i; } value; };
+    const size_t align = offsetof(struct alignment_probe, value);
+    size_t offset = arena_used + (align - arena_used % align) % align;
+    if (!request_active || !size) return NULL;
+    if (offset > C_MCP_ARENA_SIZE || size > C_MCP_ARENA_SIZE - offset) {
+        arena_failed = 1; return NULL;
+    }
+    arena_used = offset + size;
+    if (arena_used > arena_peak) arena_peak = arena_used;
+    return arena.bytes + offset;
+}
+
+char *mcp_arena_strdup(const char *text)
+{
+    char *copy;
+    size_t size;
+    if (!text) return NULL;
+    size = strlen(text) + 1;
+    copy = (char *)mcp_arena_alloc(size);
+    if (copy) memcpy(copy, text, size);
+    return copy;
+}
+
+size_t mcp_arena_used(void) { return arena_used; }
+size_t mcp_arena_high_water(void) { return arena_peak; }
+size_t mcp_heap_allocations(void) { return heap_allocations; }
+
+static void * CJSON_CDECL allocate_json(size_t size)
+{
+    void *result;
+    if (request_active) return mcp_arena_alloc(size);
+    ++heap_allocations;
+    result = malloc(size);
+    if (!result) heap_failed = 1;
+    return result;
+}
+
+static void CJSON_CDECL release_json(void *ptr)
+{
+    uintptr_t value = (uintptr_t)ptr, begin = (uintptr_t)arena.bytes;
+    if (value >= begin && value < begin + sizeof(arena.bytes)) return;
+    free(ptr);
+}
+
+static void install_hooks(void)
+{
+    if (!hooks_installed) {
+        cJSON_Hooks hooks = { allocate_json, release_json };
+        cJSON_InitHooks(&hooks);
+        hooks_installed = 1;
+    }
+}
+
+static void reference_value(cJSON *slot, const cJSON *value)
+{
+    char *key = slot->string;
+    cJSON *next = slot->next, *prev = slot->prev;
+    memset(slot, 0, sizeof(*slot));
+    if (value) *slot = *value;
+    else slot->type = cJSON_NULL;
+    slot->type |= cJSON_IsReference | cJSON_StringIsConst;
+    slot->string = key; slot->next = next; slot->prev = prev;
+}
 
 struct argument
 {
@@ -26,6 +103,7 @@ void add_argument(struct tool *tool,
                   enum type type,
                   const char *description)
 {
+    if (prepared || request_active) return;
     struct argument *arg = malloc(sizeof(struct argument));
     if (!tool || !arg) { free(arg); return; }
     arg->name = name;
@@ -49,6 +127,8 @@ void free_arguments(struct argument *arg_list)
 struct tool *add_tool(const char *name,
                       const char *description)
 {
+    if (prepared || request_active || !name) return NULL;
+    install_hooks();
     struct tool *t = malloc(sizeof(struct tool));
     if (!t) return NULL;
     t->name = name;
@@ -61,6 +141,12 @@ struct tool *add_tool(const char *name,
 
 void free_tools()
 {
+    if (request_active) return;
+    cJSON_Delete(tools_result); tools_result = NULL;
+    cJSON_Delete(success_template); success_template = NULL;
+    cJSON_Delete(error_template); error_template = NULL;
+    cJSON_Delete(text_template); text_template = NULL;
+    prepared = 0;
     struct tool *t = tool_list;
     while (t)
     {
@@ -118,6 +204,59 @@ cJSON *get_json_for_tool(struct tool *tool)
     return (t);
 }
 
+int mcp_prepare(void)
+{
+    struct tool *tool;
+    cJSON *list;
+    if (prepared) return 0;
+    if (request_active) return -1;
+    install_hooks();
+    /* A failed preparation may be retried without leaking partial templates. */
+    cJSON_Delete(tools_result); cJSON_Delete(success_template);
+    cJSON_Delete(error_template); cJSON_Delete(text_template);
+    tools_result = success_template = error_template = text_template = NULL;
+    heap_failed = 0;
+    tools_result = cJSON_CreateObject();
+    list = cJSON_AddArrayToObject(tools_result, "tools");
+    for (tool = tool_list; tool; tool = tool->next) {
+        cJSON *json = get_json_for_tool(tool);
+        if (!json || !cJSON_AddItemToArray(list, json)) { cJSON_Delete(json); return -1; }
+    }
+    success_template = cJSON_CreateObject();
+    cJSON_AddStringToObject(success_template, "jsonrpc", "2.0");
+    success_id = cJSON_AddNullToObject(success_template, "id");
+    success_value = cJSON_AddNullToObject(success_template, "result");
+    error_template = cJSON_CreateObject();
+    cJSON_AddStringToObject(error_template, "jsonrpc", "2.0");
+    error_id = cJSON_AddNullToObject(error_template, "id");
+    {
+        cJSON *error = cJSON_AddObjectToObject(error_template, "error");
+        error_code = cJSON_AddNumberToObject(error, "code", MCP_INTERNAL_ERROR);
+        error_message = cJSON_CreateStringReference("");
+        cJSON_AddItemToObject(error, "message", error_message);
+    }
+    text_template = cJSON_CreateObject();
+    {
+        cJSON *content = cJSON_AddArrayToObject(text_template, "content");
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddItemToArray(content, item);
+        cJSON_AddStringToObject(item, "type", "text");
+        text_value = cJSON_CreateStringReference("");
+        cJSON_AddItemToObject(item, "text", text_value);
+    }
+    if (heap_failed || !list || !success_id || !success_value || !error_id || !error_code ||
+        !error_message || !text_value) return -1;
+    /* Slots reference arena values and must never own their startup key. */
+    cJSON_free(success_id->string); success_id->string = (char *)"id";
+    cJSON_free(success_value->string); success_value->string = (char *)"result";
+    cJSON_free(error_id->string); error_id->string = (char *)"id";
+    reference_value(success_id, NULL);
+    reference_value(success_value, NULL);
+    reference_value(error_id, NULL);
+    prepared = 1;
+    return 0;
+}
+
 #define PROTOCOL_VERSION "2025-06-18" // match spec
 
 
@@ -132,14 +271,41 @@ static void send_stdio(const char *s, int cfd)
 
 static void send_json(cJSON *obj, int cfd, mcp_send_fn send)
 {
-    char *s = cJSON_PrintUnformatted(obj);
-    if (!s) return;
-    send(s, cfd);
-    free(s);
+    size_t available = C_MCP_ARENA_SIZE - arena_used;
+    size_t previous_peak = arena_peak;
+    char *s = NULL;
+    if (available > 16 && available <= INT_MAX) {
+        /* Serialization consumes the remaining arena exactly once. */
+        s = (char *)mcp_arena_alloc(available - 16);
+    }
+    if (s && obj && !arena_failed &&
+        cJSON_PrintPreallocated(obj, s, (int)(available - 16), 0)) {
+        arena_used = (size_t)(s - (char *)arena.bytes) + strlen(s) + 1;
+        arena_peak = arena_used > previous_peak ? arena_used : previous_peak;
+        send(s, cfd);
+    } else {
+        /* Independent emergency storage survives even a completely full arena.
+         * Preserve the request id when it fits, otherwise fall back to null. */
+        char emergency[1024];
+        error_code->valuedouble = MCP_INTERNAL_ERROR;
+        error_code->valueint = MCP_INTERNAL_ERROR;
+        error_message->valuestring = (char *)"Request arena exhausted";
+        if (!cJSON_PrintPreallocated(error_template, emergency, sizeof(emergency), 0)) {
+            reference_value(error_id, NULL);
+            cJSON_PrintPreallocated(error_template, emergency, sizeof(emergency), 0);
+        }
+        send(emergency, cfd);
+    }
 }
 
 cJSON *ok(cJSON *id, cJSON *result)
 {
+    if (request_active) {
+        reference_value(success_id, id);
+        reference_value(error_id, id);
+        reference_value(success_value, result);
+        return success_template;
+    }
     cJSON *m = cJSON_CreateObject();
     cJSON_AddStringToObject(m, "jsonrpc", "2.0");
     cJSON_AddItemToObject(m, "id", cJSON_Duplicate(id, 1));
@@ -149,6 +315,13 @@ cJSON *ok(cJSON *id, cJSON *result)
 
 cJSON *err(cJSON *id, int code, const char *msg)
 {
+    if (request_active) {
+        reference_value(error_id, id);
+        error_code->valuedouble = code; error_code->valueint = code;
+        error_message->valuestring = mcp_arena_strdup(msg);
+        if (!error_message->valuestring) error_message->valuestring = (char *)"Request arena exhausted";
+        return error_template;
+    }
     cJSON *m = cJSON_CreateObject();
     cJSON_AddStringToObject(m, "jsonrpc", "2.0");
     cJSON_AddItemToObject(m, "id", id ? cJSON_Duplicate(id, 1) : cJSON_CreateNull());
@@ -195,6 +368,7 @@ static cJSON *handle_initialize(cJSON *id, cJSON *params)
 
 static cJSON *handle_tools_list(cJSON *id)
 {
+    if (request_active) return ok(id, tools_result);
     cJSON *result = cJSON_CreateObject();
     cJSON *tools = cJSON_CreateArray();
 
@@ -217,6 +391,11 @@ static cJSON *handle_ping(cJSON *id)
 
 cJSON *create_result_text(const char *text)
 {
+    if (request_active) {
+        text_value->valuestring = mcp_arena_strdup(text);
+        if (!text_value->valuestring) return NULL;
+        return text_template;
+    }
     cJSON *res = cJSON_CreateObject();
     cJSON *content = cJSON_CreateArray();
     cJSON *item = cJSON_CreateObject();
@@ -235,13 +414,22 @@ void dispatch(const char *line,int cfd)
 void dispatch_with_sender(const char *line, int cfd, mcp_send_fn send)
 {
     if (!send) send = send_stdio;
+    if (request_active) {
+        send("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"Reentrant dispatch is unsupported\"}}", cfd);
+        return;
+    }
+    if (mcp_prepare() != 0) {
+        send("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"MCP startup allocation failed\"}}", cfd);
+        return;
+    }
+    arena_used = 0; arena_failed = 0; request_active = 1;
+    reference_value(error_id, NULL);
     cJSON *root = cJSON_ParseWithOpts(line, NULL, 1);
     if (!root)
     {
         cJSON *e = err(NULL, MCP_PARSE_ERROR, "Parse error");
         send_json(e,cfd,send);
-        cJSON_Delete(e);
-        return;
+        goto finished;
     }
     
     cJSON *id = cJSON_GetObjectItemCaseSensitive(root, "id"); // may be NULL for notifications
@@ -256,13 +444,12 @@ void dispatch_with_sender(const char *line, int cfd, mcp_send_fn send)
     {
         cJSON *e = err(NULL, MCP_INVALID_REQUEST, "Invalid Request");
         send_json(e,cfd,send);
-        cJSON_Delete(e);
-        cJSON_Delete(root);
-        return;
+        goto finished;
     }
 
     /* Notifications never have responses; only requests may mutate settings. */
-    if (!id) { send(NULL, cfd); cJSON_Delete(root); return; }
+    if (!id) { send(NULL, cfd); goto finished; }
+    reference_value(error_id, id);
 
     cJSON *resp = NULL;
     const char *m = method->valuestring;
@@ -289,6 +476,12 @@ void dispatch_with_sender(const char *line, int cfd, mcp_send_fn send)
     }
 
     send_json(resp,cfd,send);
-    cJSON_Delete(resp);
-    cJSON_Delete(root);
+finished:
+    /* Drop every arena reference before releasing the request's storage. */
+    reference_value(success_id, NULL);
+    reference_value(success_value, NULL);
+    reference_value(error_id, NULL);
+    text_value->valuestring = (char *)"";
+    error_message->valuestring = (char *)"";
+    request_active = 0; arena_used = 0;
 }

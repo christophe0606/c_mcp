@@ -33,6 +33,28 @@ the port. Use `--smoke-test` to check an already running bridge through HTTP.
 
 ## Portable core and optional transports
 
+### Bounded request memory
+
+Register tools during startup, then call `mcp_prepare()` and check its return
+value. It caches the tool schemas and allocates reusable success, error and text
+response templates. Registration is closed until `free_tools()` starts a new
+startup phase. Dispatch lazily prepares for older applications.
+
+`c_mcp_config.h` provides a Configuration Wizard setting for
+`C_MCP_ARENA_SIZE` (default 32 KiB). Request parsing, callback output, changing
+response text and serialization use this aligned arena, with no request-time
+heap allocation. `mcp_arena_alloc()` and `mcp_arena_strdup()` are available only
+during dispatch. The arena resets after the synchronous sender returns, so it
+must not retain any pointer. Exhaustion returns an internal error from independent
+bounded storage, and the next request can proceed. `mcp_arena_used()`,
+`mcp_arena_high_water()` and `mcp_heap_allocations()` expose diagnostic counters.
+
+Dispatch is single-threaded and non-reentrant. The cJSON hooks are global: do not
+replace them or use cJSON concurrently during dispatch. Outside dispatch, cJSON
+uses the heap normally; response helpers return owned objects. Inside dispatch,
+the response helpers return borrowed reusable templates; do not delete or retain
+them. Complete all transport writes before returning from the sender.
+
 The portable core consists of `mcp.c` and `cJSON.c`, with their headers.
 It uses standard C and has no socket, pthread, atomic or POSIX dependency.
 Applications provide `handle_tools_call()` and register their tools using
