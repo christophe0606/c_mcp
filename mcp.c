@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <ctype.h>
+#include "mcp_index.h"
 
 /* The union supplies alignment for every scalar used by the portable core. */
 static union { long double ld; void *ptr; long long integer;
@@ -157,6 +158,7 @@ struct argument
 
 struct tool
 {
+    struct mcp_index index;
     const char *name;
     const char *description;
     struct argument *arguments; // JSON schema as string
@@ -164,6 +166,15 @@ struct tool
 };
 
 static struct tool *tool_list = NULL; // linked list of registered tools
+static struct mcp_index *tool_index;
+static size_t lookup_steps;
+
+struct tool *find_tool(const char *name)
+{
+    return (struct tool *)index_find(tool_index, name, &lookup_steps);
+}
+size_t mcp_tool_lookup_steps(void) { return lookup_steps; }
+size_t mcp_tool_index_height(void) { return (size_t)index_height(tool_index); }
 
 void add_argument(struct tool *tool,
                   const char *name,
@@ -194,13 +205,16 @@ void free_arguments(struct argument *arg_list)
 struct tool *add_tool(const char *name,
                       const char *description)
 {
-    if (prepared || request_active || !name) return NULL;
+    if (prepared || request_active || !name || !*name || find_tool(name)) return NULL;
     install_hooks();
     struct tool *t = malloc(sizeof(struct tool));
     if (!t) return NULL;
     t->name = name;
     t->description = description;
     t->arguments = NULL;
+    t->index.key = name; t->index.value = t;
+    t->index.left = t->index.right = NULL; t->index.height = 1;
+    tool_index = index_insert(tool_index, &t->index);
     t->next = tool_list;
     tool_list = t;
     return (t);
@@ -223,6 +237,7 @@ void free_tools()
         t = next;
     }
     tool_list = NULL;
+    tool_index = NULL; lookup_steps = 0;
 }
 
 void add_arguments(cJSON *props,

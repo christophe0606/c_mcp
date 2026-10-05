@@ -93,5 +93,30 @@ int main(void)
     CHECK(cJSON_GetArraySize(cJSON_GetObjectItemCaseSensitive(result, "tools")) == 0);
     cJSON_Delete(reply);
     free_tools();
+    {
+        char names[257][32];
+        struct tool *registered[257];
+        int order, i;
+        for (i = 0; i < 257; ++i) snprintf(names[i], sizeof(names[i]), "shared-prefix-tool-%03d", i);
+        for (order = 0; order < 3; ++order) {
+            for (i = 0; i < 257; ++i) {
+                int n = order == 0 ? i : order == 1 ? 256 - i : (i * 37) % 257;
+                registered[n] = add_tool(names[n], "Index test");
+                CHECK(registered[n]);
+                CHECK(mcp_tool_index_height() <= 11);
+            }
+            CHECK(add_tool(names[128], "Duplicate") == NULL);
+            CHECK(add_tool("", "Empty") == NULL);
+            for (i = 0; i < 257; ++i) {
+                CHECK(find_tool(names[i]) == registered[i]);
+                CHECK(mcp_tool_lookup_steps() <= 11);
+            }
+            CHECK(find_tool("shared-prefix-tool-999") == NULL);
+            CHECK(mcp_tool_lookup_steps() <= 11);
+            CHECK(find_tool(NULL) == NULL);
+            free_tools();
+            CHECK(mcp_tool_index_height() == 0);
+        }
+    }
     return 0;
 }

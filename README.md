@@ -35,6 +35,14 @@ the port. Use `--smoke-test` to check an already running bridge through HTTP.
 
 ### Bounded request memory
 
+Tool names are indexed by an intrusive AVL tree, with one node in each tool
+allocation. Sorted, reverse and arbitrary registration orders remain balanced.
+`find_tool()` takes O(log M) string comparisons for M tools (each comparison is
+O(L) in the name length). Duplicate or empty names are rejected. Names and
+descriptions passed during registration must remain valid until `free_tools()`.
+The linked list remains only for discovery enumeration. Index height and lookup
+comparison counts are available for diagnostics.
+
 Register tools during startup, then call `mcp_prepare()` and check its return
 value. It caches the tool schemas and allocates reusable success, error and text
 response templates. Registration is closed until `free_tools()` starts a new

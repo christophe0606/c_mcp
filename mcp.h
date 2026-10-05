@@ -24,6 +24,9 @@ enum type
 
 struct argument;
 struct tool;
+extern struct tool *find_tool(const char *name);
+extern size_t mcp_tool_lookup_steps(void);
+extern size_t mcp_tool_index_height(void);
 
 /* Call once after registration, before accepting requests. Dispatch is single
  * threaded and non-reentrant. cJSON hooks are process-wide: do not replace them
