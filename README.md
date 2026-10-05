@@ -1,13 +1,23 @@
 # README
 
-MCP server (generated a lot with chat GPT help)
-Can provide MCP on stdio and on http.
+MCP parser library that provides MCP protocol on serial port.
 
-The `tools.cpp` is not built into the library since it must be provided by the application using the MCP server.
+Focus is development, debug and tests.
+This library is not intended for use in a final product.
 
-`tools.cpp` is just used to build the demo example.
+With MCP on your board, you easily can add any automation : the board can be
+controlled by scripts running on your computer or by AI agents.
+
+The automation is at application level and thus complement what can be done
+with a debugger.
+
 
 ## Serial-to-HTTP MCP bridge
+
+Serial port has to be shared with all the scripts and agent that may want to
+communicate with the board.
+
+A ptyhon bridge si provided for this purpose:
 
 `tools/mcp_serial_bridge.py` exposes a board's newline-delimited UART MCP
 server at `http://127.0.0.1:8765/mcp`. Requires Python 3.10 or newer and `uv`.
@@ -134,8 +144,7 @@ them. Complete all transport writes before returning from the sender.
 The portable core consists of `mcp.c` and `cJSON.c`, with their headers.
 It uses standard C and has no socket, pthread, atomic or POSIX dependency.
 Applications register tools with `add_tool()`, `set_tool_callback()` and
-`add_argument()`; the core now provides `handle_tools_call()`. Remove the old
-application dispatcher when migrating. Arguments arrive in registration order
+`add_argument()`; the core now provides `handle_tools_call()`.Arguments arrive in registration order
 (older prepend/reverse-registration behavior is replaced). `free_tools()` releases
 the registry. Use `dispatch_with_sender()` to invoke callbacks; direct calls to
 `handle_tools_call()` are internal to an active request.

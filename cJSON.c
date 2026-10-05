@@ -117,7 +117,7 @@ CJSON_PUBLIC(double) cJSON_GetNumberValue(const cJSON * const item)
 }
 
 /* This is a safeguard to prevent copy-pasters from using incompatible C and header files */
-#if (CJSON_VERSION_MAJOR != 1) || (CJSON_VERSION_MINOR != 7) || (CJSON_VERSION_PATCH != 18)
+#if (CJSON_VERSION_MAJOR != 1) || (CJSON_VERSION_MINOR != 7) || (CJSON_VERSION_PATCH != 19)
     #error cJSON.h and cJSON.c have different versions. Make sure that both have the same.
 #endif
 
@@ -410,6 +410,11 @@ loop_end:
 /* don't ask me, but the original cJSON_SetNumberValue returns an integer or double */
 CJSON_PUBLIC(double) cJSON_SetNumberHelper(cJSON *object, double number)
 {
+    if (object == NULL)
+    {
+        return (double)NAN;
+    }
+
     if (number >= INT_MAX)
     {
         object->valueint = INT_MAX;
@@ -1598,6 +1603,11 @@ static cJSON_bool print_array(const cJSON * const item, printbuffer * const outp
         return false;
     }
 
+    if (output_buffer->depth >= CJSON_NESTING_LIMIT)
+    {
+        return false; /* nesting is too deep */
+    }
+
     /* Compose the output array. */
     /* opening square bracket */
     output_pointer = ensure(output_buffer, 1);
@@ -1776,6 +1786,11 @@ static cJSON_bool print_object(const cJSON * const item, printbuffer * const out
     if (output_buffer == NULL)
     {
         return false;
+    }
+
+    if (output_buffer->depth >= CJSON_NESTING_LIMIT)
+    {
+        return false; /* nesting is too deep */
     }
 
     /* Compose the output: */
