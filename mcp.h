@@ -50,14 +50,9 @@
  *  \ingroup cmcp
  *  \brief Read counters without allocating memory.
  */
-/** \defgroup cmcp_responses Low-level response helpers
- *  \ingroup cmcp
- *  \brief Compatibility helpers; registered callbacks normally return plain text.
- */
-
 #ifndef mcp_h
 #define mcp_h
-#include "cJSON.h"
+#include <stddef.h>
 #include <c_mcp_config.h>
 #ifdef __cplusplus
 extern "C" {
@@ -272,8 +267,8 @@ extern size_t mcp_tool_index_height(void);
  * \return 0 on success, including repeated calls after successful preparation;
  *         -1 for allocation/registration failure or an active unprepared request.
  * \details Successful preparation closes registration until free_tools().
- * Dispatch lazily prepares for older applications, but explicit preparation lets
- * startup detect errors before accepting requests. Installs process-wide cJSON
+ * Dispatch also prepares on first use. Explicit preparation lets startup detect
+ * errors before accepting requests. Installs process-wide cJSON
  * hooks and uses the heap, not the request arena.
  * \par Example
  * \code{.c}
@@ -517,77 +512,6 @@ extern void add_argument(struct tool *tool,
  */
 extern struct tool *add_tool(const char *name,
                       const char *description);
-/**
- * \ingroup cmcp_responses
- * \brief Wrap a result in a JSON-RPC success envelope.
- * \param[in] id Borrowed request ID; supply a valid cJSON ID, including JSON null.
- * \param[in] result Result object; borrowed during dispatch. Outside dispatch its
- *                   ownership transfers to the returned envelope.
- * \return Borrowed reusable template during dispatch, or heap-owned envelope
- *         outside dispatch.
- * \details Outside dispatch, id is deep-copied. During dispatch, id/result are
- * referenced and must remain valid until serialization. Do not delete or retain
- * the borrowed response; subsequent calls can overwrite it.
- * \par Example
- * \code{.c}
- * cJSON *id = cJSON_CreateNumber(1); // Outside dispatch.
- * cJSON *response = ok(id, create_result_text("Ready"));
- * // Use response; do not separately delete its adopted result.
- * cJSON_Delete(response);
- * cJSON_Delete(id);
- * \endcode
- */
-extern cJSON *ok(cJSON *id, cJSON *result);
-/**
- * \ingroup cmcp_responses
- * \brief Build a JSON-RPC error envelope.
- * \param[in] id Borrowed request ID; NULL selects JSON null.
- * \param[in] code Error code, usually an MCP_* constant.
- * \param[in] msg Non-NULL, null-terminated error text; copied by the helper.
- * \return Borrowed reusable template during dispatch, or heap-owned object outside.
- * \details Do not delete/retain the dispatch template; later calls may overwrite it.
- * \par Example
- * \code{.c}
- * cJSON *response = err(NULL, MCP_INVALID_PARAMS, "Expected colour name");
- * cJSON_Delete(response); // Only when called outside dispatch.
- * \endcode
- */
-extern cJSON *err(cJSON *id, int code, const char *msg);
-/**
- * \ingroup cmcp_responses
- * \brief Build an MCP tool result containing one text content item.
- * \param[in] text Non-NULL, null-terminated text to copy.
- * \return Borrowed reusable template during dispatch (NULL if arena copying fails),
- *         or heap-owned cJSON result outside dispatch.
- * \details Returns content with type=text, without a JSON-RPC envelope.
- * Use ok() to wrap it. Registered callbacks return plain text: the core invokes
- * this helper for them. Do not delete/retain the dispatch template.
- * \par Example
- * \code{.c}
- * cJSON *result = create_result_text("Ready");
- * cJSON_Delete(result); // Only when called outside dispatch.
- * \endcode
- */
-extern cJSON *create_result_text(const char *text);
-/**
- * \ingroup cmcp_responses
- * \brief Internal tools/call handler retained in the public header for compatibility.
- * \param[in] id Borrowed JSON-RPC request ID.
- * \param[in] params Object with tool name and optional arguments object.
- * \return Borrowed success/error response with current request lifetime.
- * \pre Active request established by dispatch() or dispatch_with_sender().
- * \warning Applications must not call this handler directly or from callbacks.
- * It depends on the request arena and reusable templates. Register callbacks
- * instead of supplying an application implementation of this function.
- * \par Example of the supported entry point
- * \code{.c}
- * dispatch_with_sender(
- *     "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\","
- *     "\"params\":{\"name\":\"setIndicator\",\"arguments\":{\"on\":true,\"color\":\"red\"}}}",
- *     0, send_reply);
- * \endcode
- */
-extern cJSON *handle_tools_call(cJSON *id, cJSON *params);
 /**
  * \ingroup cmcp_memory
  * \brief Release tool/resource registries and cached responses; reopen registration.

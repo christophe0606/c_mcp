@@ -69,6 +69,9 @@ Register optional read-only resources with `add_resource()`. Keep registration
 strings alive until `free_tools()`. Check all registration results and
 `mcp_prepare()` before accepting input.
 
+The [simple C example](@ref simple_example) shows tool registration, startup,
+the serial request loop and cleanup together for a `setGain` tool.
+
 Numeric arguments are expected to be finite values representable as a `double`.
 
 Call `init_serial()` once, then `process_serial()` in the foreground main loop.

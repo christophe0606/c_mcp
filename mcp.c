@@ -1,4 +1,5 @@
 #include "mcp.h"
+#include "cJSON.h"
 #include "serial_transport.h"
 #include <stdio.h>
 #include <string.h>
@@ -483,38 +484,21 @@ static void send_json(cJSON *obj, int cfd, mcp_send_fn send)
     }
 }
 
-cJSON *ok(cJSON *id, cJSON *result)
+static cJSON *ok(cJSON *id, cJSON *result)
 {
-    if (request_active) {
-        reference_value(success_id, id);
-        reference_value(error_id, id);
-        reference_value(success_value, result);
-        return success_template;
-    }
-    cJSON *m = cJSON_CreateObject();
-    cJSON_AddStringToObject(m, "jsonrpc", "2.0");
-    cJSON_AddItemToObject(m, "id", cJSON_Duplicate(id, 1));
-    cJSON_AddItemToObject(m, "result", result);
-    return m;
+    reference_value(success_id, id);
+    reference_value(error_id, id);
+    reference_value(success_value, result);
+    return success_template;
 }
 
-cJSON *err(cJSON *id, int code, const char *msg)
+static cJSON *err(cJSON *id, int code, const char *msg)
 {
-    if (request_active) {
-        reference_value(error_id, id);
-        error_code->valuedouble = code; error_code->valueint = code;
-        error_message->valuestring = mcp_arena_strdup(msg);
-        if (!error_message->valuestring) error_message->valuestring = (char *)"Request arena exhausted";
-        return error_template;
-    }
-    cJSON *m = cJSON_CreateObject();
-    cJSON_AddStringToObject(m, "jsonrpc", "2.0");
-    cJSON_AddItemToObject(m, "id", id ? cJSON_Duplicate(id, 1) : cJSON_CreateNull());
-    cJSON *e = cJSON_CreateObject();
-    cJSON_AddNumberToObject(e, "code", code);
-    cJSON_AddStringToObject(e, "message", msg);
-    cJSON_AddItemToObject(m, "error", e);
-    return m;
+    reference_value(error_id, id);
+    error_code->valuedouble = code; error_code->valueint = code;
+    error_message->valuestring = mcp_arena_strdup(msg);
+    if (!error_message->valuestring) error_message->valuestring = (char *)"Request arena exhausted";
+    return error_template;
 }
 
 static cJSON *handle_initialize(cJSON *id, cJSON *params)
@@ -546,20 +530,7 @@ static cJSON *handle_initialize(cJSON *id, cJSON *params)
 
 static cJSON *handle_tools_list(cJSON *id)
 {
-    if (request_active) return ok(id, tools_result);
-    cJSON *result = cJSON_CreateObject();
-    cJSON *tools = cJSON_CreateArray();
-
-    struct tool *tool = tool_list;
-    while (tool)
-    {
-        cJSON *t = get_json_for_tool(tool);
-        cJSON_AddItemToArray(tools, t);
-        tool = tool->next;
-    }
-
-    cJSON_AddItemToObject(result, "tools", tools);
-    return ok(id, result);
+    return ok(id, tools_result);
 }
 
 static cJSON *handle_ping(cJSON *id)
@@ -567,21 +538,11 @@ static cJSON *handle_ping(cJSON *id)
     return ok(id, cJSON_CreateObject());
 }
 
-cJSON *create_result_text(const char *text)
+static cJSON *create_result_text(const char *text)
 {
-    if (request_active) {
-        text_value->valuestring = mcp_arena_strdup(text);
-        if (!text_value->valuestring) return NULL;
-        return text_template;
-    }
-    cJSON *res = cJSON_CreateObject();
-    cJSON *content = cJSON_CreateArray();
-    cJSON *item = cJSON_CreateObject();
-    cJSON_AddStringToObject(item, "type", "text");
-    cJSON_AddStringToObject(item, "text", text);
-    cJSON_AddItemToArray(content, item);
-    cJSON_AddItemToObject(res, "content", content);
-    return res;
+    text_value->valuestring = mcp_arena_strdup(text);
+    if (!text_value->valuestring) return NULL;
+    return text_template;
 }
 
 static const char *argument_text(const cJSON *value, enum type type)
@@ -595,7 +556,7 @@ static const char *argument_text(const cJSON *value, enum type type)
     return mcp_arena_strdup(number);
 }
 
-cJSON *handle_tools_call(cJSON *id, cJSON *params)
+static cJSON *handle_tools_call(cJSON *id, cJSON *params)
 {
     struct tool *tool;
     struct argument *arg;

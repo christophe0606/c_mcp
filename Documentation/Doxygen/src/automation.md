@@ -35,7 +35,8 @@ curl "${http[@]}" "$url" -X DELETE -o /dev/null
 ```
 
 Run `bash board-tool.sh` to set the gain to `2.0`. This example assumes the
-board firmware defines a `setGain` tool with a numeric `gain` argument; the
+board firmware defines a `setGain` tool with a numeric `gain` argument, as in
+the [simple C example](@ref simple_example); the
 library does not register it automatically. Change the `gain` value in the
 final `tools/call` message to set another gain, and adjust `url` if needed.
 No tool discovery is performed.

@@ -15,7 +15,9 @@ registration and optional read-only resources.
 The transport sends newline-delimited
 JSON-RPC using serial hooks and by default use stdio.
 
-Start with the [integration guide](@ref integration). The API is grouped into:
+Start with the [integration guide](@ref integration) and the
+[simple C example](@ref simple_example), which registers `setGain` and shows
+startup, message processing and cleanup. The API is grouped into:
 
 - [Tool registration and callbacks](@ref cmcp_tools)
 - [Read-only virtual resources](@ref cmcp_resources)
