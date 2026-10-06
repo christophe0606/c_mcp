@@ -1,2 +1,6 @@
 // Metadata used by the CMSIS documentation publishing action.
 const cmsisMcpVersion = 'Version {projectNumber}';
+
+function writeFooter() {
+    document.write('CMSIS-MCP {projectNumber}. Licensed under Apache-2.0.');
+}

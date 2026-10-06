@@ -1,6 +1,7 @@
 PROJECT_NAME           = "CMSIS-MCP"
 PROJECT_NUMBER         = "{projectNumber}"
 PROJECT_BRIEF          = "Embedded MCP server with serial transport"
+PROJECT_LOGO           = style_template/cmsis_logo_white_small.png
 OUTPUT_DIRECTORY       = ../
 OUTPUT_LANGUAGE        = English
 INPUT                  = src ../../mcp.h ../../serial_transport.h ../../Config/c_mcp_config.h ../../LICENSE.md
@@ -12,12 +13,29 @@ FULL_PATH_NAMES        = NO
 JAVADOC_AUTOBRIEF      = YES
 OPTIMIZE_OUTPUT_FOR_C  = YES
 MARKDOWN_SUPPORT       = YES
+LAYOUT_FILE            = style_template/layout.xml
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
-HTML_EXTRA_STYLESHEET  = style_template/extra_stylesheet.css
+HTML_HEADER            = style_template/header.html
+HTML_EXTRA_STYLESHEET  = style_template/extra_stylesheet.css \
+                         style_template/extra_navtree.css \
+                         style_template/extra_search.css \
+                         style_template/extra_tabs.css \
+                         style_template/version.css
 HTML_FOOTER            = style_template/footer.html
-HTML_EXTRA_FILES       = style_template/version-loader.js
+HTML_EXTRA_FILES       = style_template/tab_b.png \
+                         style_template/tab_topnav.png \
+                         style_template/tabs.js \
+                         style_template/darkmode_toggle.js \
+                         style_template/dropdown.png \
+                         style_template/version-loader.js
+HTML_COLORSTYLE        = TOGGLE
+HTML_DYNAMIC_MENUS     = NO
+HTML_DYNAMIC_SECTIONS  = NO
+DISABLE_INDEX          = YES
 GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = NO
+TREEVIEW_WIDTH         = 330
 SEARCHENGINE           = YES
 GENERATE_LATEX         = NO
 HAVE_DOT               = NO

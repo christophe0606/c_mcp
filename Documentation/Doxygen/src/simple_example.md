@@ -86,5 +86,6 @@ For example, the following message sets `application_gain` to `2.0`:
 The loop ends when the serial input closes. An embedded application can use
 its own shutdown condition instead. Supply the project's serial hooks and
 complete response transmission before the sender returns; see the
-[serial API](@ref cmcp_serial). The [Bash and curl example](@ref automation)
-calls this tool through the Python bridge.
+[serial API](@ref cmcp_serial). Continue with the
+[automation guide](@ref automation) to connect an AI harness or call this tool
+from a script through the Python bridge.

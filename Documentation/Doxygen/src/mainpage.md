@@ -15,9 +15,14 @@ registration and optional read-only resources.
 The transport sends newline-delimited
 JSON-RPC using serial hooks and by default use stdio.
 
-Start with the [integration guide](@ref integration) and the
-[simple C example](@ref simple_example), which registers `setGain` and shows
-startup, message processing and cleanup. The API is grouped into:
+Follow these guides in order:
+
+1. @subpage integration
+2. @subpage simple_example
+3. @subpage automation
+
+The simple C example registers `setGain` and shows startup, message processing
+and cleanup. The API is grouped into:
 
 - [Tool registration and callbacks](@ref cmcp_tools)
 - [Read-only virtual resources](@ref cmcp_resources)
@@ -31,8 +36,8 @@ HTTP MCP endpoint. The C component in this release uses serial transport.
 
 The pack's `MCP-Host` layer copies the bridge to `tools/mcp` in the application,
 outside RTE; see the [integration guide](@ref integration).
-For automation without an AI agent, see the
-[Bash and curl example](@ref automation).
+The [automation guide](@ref automation) explains how to connect an AI harness
+and how to call tools from scripts.
 
 ## License and third-party code
 

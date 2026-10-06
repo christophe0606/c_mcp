@@ -11,6 +11,10 @@ Requires Bash and Doxygen (1.13.2 is used in CI). The script uses
 integration guide in `Doxygen/src/`. HTML is written to `Documentation/html/`.
 Set `DOXYGEN` to an executable path if Doxygen is not on PATH.
 
+The HTML uses the CMSIS template from CMSIS-DSP, including the CMSIS logo,
+header, colour themes, navigation and search styling. See
+`Doxygen/style_template/README.md` for the source revision and adaptations.
+
 The pack workflow generates this HTML and publishes it under `main/` on the
 `gh-pages` branch. Pull requests receive a documentation artifact instead.
 The Pages workflow deploys it at

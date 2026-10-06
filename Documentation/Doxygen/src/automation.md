@@ -1,9 +1,26 @@
-# Automate the board with Bash and curl {#automation}
+# Automate the board {#automation}
 
-Scripts can call board tools directly through the Python bridge using MCP
-JSON-RPC messages over HTTP. No AI agent is required. Start the bridge as
-described in the [integration guide](@ref integration), then save this
-script as `board-tool.sh`:
+After adding tools to the firmware, as in the
+[simple C example](@ref simple_example), start the Python bridge as described
+in the [integration guide](@ref integration). It exposes the board's tools at
+`http://127.0.0.1:8765/mcp`.
+
+## Connect an AI harness
+
+Add an MCP server entry to your AI harness's configuration, using
+**Streamable HTTP** and the Python bridge URL `http://127.0.0.1:8765/mcp`.
+The configuration format depends on the harness. If you change the bridge's
+address or port, use its corresponding `/mcp` URL.
+
+Keep the bridge running so the harness can discover and call the firmware's
+tools. With the example firmware, the AI agent can discover `setGain` and
+call it with the numeric argument `gain: 2.0`.
+
+## Call tools from scripts
+
+Scripts can also call board tools through the bridge using MCP JSON-RPC
+messages over HTTP. With the bridge running, save this Bash and curl example
+as `board-tool.sh`:
 
 ```bash
 #!/usr/bin/env bash

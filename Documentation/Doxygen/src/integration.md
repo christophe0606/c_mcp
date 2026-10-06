@@ -123,14 +123,6 @@ uv run --script tools/mcp_serial_bridge.py --port "<serial-port>"
 The C implementation in this release is the Serial variant. A C HTTP variant
 will be added in a future release.
 
-The [Bash and curl example](@ref automation) shows how to initialize an MCP
-session and call a known firmware tool through the bridge without
-an AI agent.
-
-### Connect an AI harness
-
-To let an AI agent control the board, add an MCP server entry to your AI
-harness's configuration, using Streamable HTTP and the Python bridge URL
-`http://127.0.0.1:8765/mcp`. The configuration format depends on the harness.
-Keep the bridge running so the harness can discover and call the firmware's
-tools.
+The [automation guide](@ref automation) explains how to connect an AI harness
+to the bridge, followed by a Bash and curl example for calling tools from
+scripts.
