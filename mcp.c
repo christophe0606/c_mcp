@@ -210,8 +210,6 @@ struct argument
     enum type type;          // "str", "int", "float", "bool"
     const char *description; // optional
     struct argument *next;
-    const char *alias;
-    const char *alias_true, *alias_false;
 };
 
 struct tool
@@ -244,13 +242,13 @@ void add_argument(struct tool *tool,
     struct argument *arg, **tail;
     if (!tool || !name || !*name || type < TYPE_STR || type > TYPE_BOOL) { registration_failed = 1; return; }
     for (arg = tool->arguments; arg; arg = arg->next)
-        if (!strcmp(arg->name, name) || (arg->alias && !strcmp(arg->alias, name))) { registration_failed = 1; return; }
+        if (!strcmp(arg->name, name)) { registration_failed = 1; return; }
     arg = malloc(sizeof(struct argument));
     if (!arg) { registration_failed = 1; return; }
     arg->name = name;
     arg->type = type;
     arg->description = description;
-    arg->next = NULL; arg->alias = NULL;
+    arg->next = NULL;
     tail = &tool->arguments;
     while (*tail) tail = &(*tail)->next;
     *tail = arg;
@@ -260,19 +258,6 @@ int set_tool_callback(struct tool *tool, mcp_tool_fn callback)
 {
     if (!tool || !callback || prepared || request_active) return -1;
     tool->callback = callback; return 0;
-}
-
-int set_boolean_argument_alias(struct tool *tool, const char *name, const char *alias,
-                               const char *true_value, const char *false_value)
-{
-    struct argument *arg, *target = NULL;
-    if (!tool || !name || !alias || !*alias || !true_value || !false_value || prepared || request_active) return -1;
-    for (arg = tool->arguments; arg; arg = arg->next) {
-        if (!strcmp(arg->name, alias) || (arg->alias && !strcmp(arg->alias, alias))) return -1;
-        if (!strcmp(arg->name, name)) target = arg;
-    }
-    if (!target || target->type != TYPE_STR) return -1;
-    target->alias = alias; target->alias_true = true_value; target->alias_false = false_value; return 0;
 }
 
 void free_arguments(struct argument *arg_list)
@@ -604,7 +589,7 @@ static const char *argument_text(const cJSON *value, enum type type)
     char number[32];
     if (type == TYPE_STR) return cJSON_IsString(value) ? value->valuestring : NULL;
     if (type == TYPE_BOOL) return cJSON_IsBool(value) ? (cJSON_IsTrue(value) ? "true" : "false") : NULL;
-    if (!cJSON_IsNumber(value) || !isfinite(value->valuedouble) ||
+    if (!cJSON_IsNumber(value) ||
         (type == TYPE_INT && floor(value->valuedouble) != value->valuedouble)) return NULL;
     snprintf(number, sizeof(number), "%.17g", value->valuedouble);
     return mcp_arena_strdup(number);
@@ -632,16 +617,13 @@ cJSON *handle_tools_call(cJSON *id, cJSON *params)
     /* Reject undeclared and duplicate input keys before calling any tool. */
     for (input = arguments ? arguments->child : NULL; input; input = input->next) {
         for (arg = tool->arguments; arg; arg = arg->next)
-            if (!strcmp(input->string, arg->name) || (arg->alias && !strcmp(input->string, arg->alias))) break;
+            if (!strcmp(input->string, arg->name)) break;
         if (!arg || cJSON_GetObjectItemCaseSensitive(arguments, input->string) != input)
             return err(id, MCP_INVALID_PARAMS, "Unknown or duplicate tool argument");
     }
     for (arg = tool->arguments; arg; arg = arg->next) {
         const cJSON *value = cJSON_GetObjectItemCaseSensitive(arguments, arg->name);
-        const cJSON *alias = arg->alias ? cJSON_GetObjectItemCaseSensitive(arguments, arg->alias) : NULL;
-        if (value && alias) return err(id, MCP_INVALID_PARAMS, "Use the canonical argument or its alias, not both");
-        argv[position] = alias ? (cJSON_IsBool(alias) ? (cJSON_IsTrue(alias) ? arg->alias_true : arg->alias_false) : NULL) :
-                                 argument_text(value, arg->type);
+        argv[position] = argument_text(value, arg->type);
         if (!argv[position++]) return err(id, arena_failed ? MCP_INTERNAL_ERROR : MCP_INVALID_PARAMS,
                                          arena_failed ? "Request arena exhausted" : "Missing argument or incorrect type");
     }

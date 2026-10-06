@@ -1,0 +1,13 @@
+/* Small additions to the standard Doxygen template. */
+html {
+  --primary-color: #345c8a;
+  --primary-dark-color: #233e5d;
+  --primary-light-color: #e9f0f8;
+}
+.contents {
+  max-width: 1100px;
+  line-height: 1.55;
+}
+div.fragment {
+  border-radius: 4px;
+}

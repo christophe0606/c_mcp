@@ -58,7 +58,7 @@
 #ifndef mcp_h
 #define mcp_h
 #include "cJSON.h"
-#include "c_mcp_config.h"
+#include <c_mcp_config.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -128,8 +128,8 @@ typedef int (*mcp_resource_fn)(const char **returnMessage);
  * \return Borrowed handle, or NULL if VFS is disabled, the definition is invalid,
  *         the URI is duplicated, allocation fails or registration is closed.
  *
- * resources/list exposes uri, name, description and mimeType. resources/read uses
- * a separate AVL index to select the callback; unknown URIs return
+ * resources/list exposes uri, name, description and mimeType. resources/read
+ * invokes the callback registered for the URI; unknown URIs return
  * MCP_RESOURCE_NOT_FOUND. Matching is exact and case-sensitive, without path
  * normalization. Strings are borrowed until free_tools(). This interface exposes
  * virtual text, not a host filesystem; no writes, subscriptions or URI templates.
@@ -173,7 +173,7 @@ extern struct mcp_resource *add_resource(const char *uri, const char *name,
     const char *description, const char *mime_type, mcp_resource_fn callback);
 /**
  * \ingroup cmcp_diagnostics
- * \brief Read the height of the balanced resource-URI index.
+ * \brief Read the height of the resource-URI lookup index for diagnostics.
  * \return Node levels; zero when empty or VFS is disabled.
  * \par Example
  * \code{.c}
@@ -233,37 +233,10 @@ extern int set_tool_callback(struct tool *tool, mcp_tool_fn callback);
 
 /**
  * \ingroup cmcp_tools
- * \brief Accept a legacy boolean input in place of a required string argument.
- * \param[in] tool Valid tool handle, not yet prepared.
- * \param[in] name Existing canonical TYPE_STR argument name.
- * \param[in] alias Nonempty alternative key, distinct from other names/aliases.
- * \param[in] true_value String passed to the callback for a true alias input.
- * \param[in] false_value String passed to the callback for a false alias input.
- * \return 0 on success; -1 for invalid/conflicting definitions or closed registration.
- *
- * Discovery still advertises only the canonical string argument. A request may
- * supply either the canonical input or its boolean alias, never both. The alias
- * uses the canonical argument's position and does not increase argc.
- * All strings are borrowed until free_tools().
- * \par Example
- * \code{.c}
- * struct tool *aa = add_tool("antialiasing", "Select antialiasing coverage");
- * add_argument(aa, "mode", TYPE_STR, "none, partial or full");
- * int rc = set_boolean_argument_alias(aa, "mode", "on", "full", "none");
- * // {"on":true} gives args[0] = "full"; {"on":false} gives "none".
- * // Check rc, register a callback, then call mcp_prepare().
- * \endcode
- */
-extern int set_boolean_argument_alias(struct tool *tool, const char *name,
-                                     const char *alias, const char *true_value,
-                                     const char *false_value);
-/**
- * \ingroup cmcp_tools
  * \brief Look up a registered tool by exact, case-sensitive name.
  * \param[in] name Tool name; NULL is permitted and has no match.
  * \return Borrowed handle, or NULL if absent. Valid until free_tools().
- * \details Uses a balanced AVL index: O(log M) string comparisons for M tools;
- * each comparison costs O(L) in name length. Does not allocate memory.
+ * \details Does not allocate memory.
  * \par Example
  * \code{.c}
  * struct tool *tool = find_tool("setIndicator");
@@ -284,7 +257,7 @@ extern struct tool *find_tool(const char *name);
 extern size_t mcp_tool_lookup_steps(void);
 /**
  * \ingroup cmcp_diagnostics
- * \brief Read the height of the balanced tool-name index.
+ * \brief Read the height of the tool-name lookup index for diagnostics.
  * \return Node levels; zero when empty, one for a single tool.
  * \par Example
  * \code{.c}
@@ -437,7 +410,7 @@ extern void dispatch_with_sender(const char *line, int fd, mcp_send_fn send);
  * \ingroup cmcp_tools
  * \brief Append one required argument to a tool's discovery schema.
  * \param[in] tool Valid handle returned by add_tool() or find_tool().
- * \param[in] name Nonempty input key, unique among the tool's names and aliases.
+ * \param[in] name Nonempty input key, unique among the tool's argument names.
  * \param[in] type JSON input type: TYPE_STR, TYPE_INT, TYPE_FLOAT or TYPE_BOOL.
  * \param[in] description Meaning, units, limits or choices; NULL omits the
  *                       property's description.

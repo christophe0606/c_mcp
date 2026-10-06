@@ -20,6 +20,13 @@
   THE SOFTWARE.
 */
 
+/*
+ * Modified from upstream cJSON 1.7.19 for CMSIS-MCP embedded use (2026-10-06).
+ * This variant supports finite numbers only. Special-value generation,
+ * detection and serialization have been removed. Numeric error returns use
+ * 0.0, as documented below. The original MIT license above is preserved.
+ */
+
 #ifndef cJSON__h
 #define cJSON__h
 
@@ -183,6 +190,8 @@ CJSON_PUBLIC(const char *) cJSON_GetErrorPtr(void);
 
 /* Check item type and return its value */
 CJSON_PUBLIC(char *) cJSON_GetStringValue(const cJSON * const item);
+/* Returns 0.0 for NULL or a non-number item. Use cJSON_IsNumber to distinguish
+ * an invalid item from a numeric zero. Modified from upstream cJSON. */
 CJSON_PUBLIC(double) cJSON_GetNumberValue(const cJSON * const item);
 
 /* These functions check the type of an item */
@@ -279,7 +288,8 @@ CJSON_PUBLIC(cJSON*) cJSON_AddArrayToObject(cJSON * const object, const char * c
 
 /* When assigning an integer value, it needs to be propagated to valuedouble too. */
 #define cJSON_SetIntValue(object, number) ((object) ? (object)->valueint = (object)->valuedouble = (number) : (number))
-/* helper for the cJSON_SetNumberValue macro */
+/* Helper for the cJSON_SetNumberValue macro. Direct calls return 0.0 for a
+ * NULL object. Modified from upstream cJSON; the macro's behavior is unchanged. */
 CJSON_PUBLIC(double) cJSON_SetNumberHelper(cJSON *object, double number);
 #define cJSON_SetNumberValue(object, number) ((object != NULL) ? cJSON_SetNumberHelper(object, (double)number) : (number))
 /* Change the valuestring of a cJSON_String object, only takes effect when type of object is cJSON_String */

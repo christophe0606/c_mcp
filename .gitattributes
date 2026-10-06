@@ -1,0 +1,4 @@
+# Keep Bash scripts portable when checked out on Windows.
+*.sh text eol=lf
+*.yml text eol=lf
+*.in text eol=lf

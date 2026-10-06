@@ -71,6 +71,22 @@ static int resource_failure(const char **message) { *message = "Sensor unavailab
 
 int main(void)
 {
+    {
+        char output[32];
+        cJSON *number = cJSON_CreateNumber(0.125);
+        cJSON *text = cJSON_CreateString("value");
+        CHECK(number && text);
+        CHECK(cJSON_GetNumberValue(number) == 0.125);
+        CHECK(cJSON_GetNumberValue(NULL) == 0.0);
+        CHECK(cJSON_GetNumberValue(text) == 0.0);
+        CHECK(cJSON_SetNumberHelper(NULL, 2.5) == 0.0);
+        CHECK(cJSON_SetNumberValue(number, -2.5) == -2.5);
+        CHECK(cJSON_GetNumberValue(number) == -2.5);
+        CHECK(cJSON_PrintPreallocated(number, output, sizeof(output), 0));
+        CHECK(strcmp(output, "-2.5") == 0);
+        cJSON_Delete(number);
+        cJSON_Delete(text);
+    }
     struct tool *tool = add_tool("test", "Test");
     add_argument(tool, "count", TYPE_INT, "Count");
     CHECK(set_tool_callback(tool, test_callback) == 0);

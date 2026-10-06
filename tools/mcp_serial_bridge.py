@@ -5,7 +5,7 @@
 """Serve the board's UART tools and resources over shared localhost HTTP MCP.
 
 From the c_mcp repository root:
-    uv run --script tools/mcp_serial_bridge.py --port COM5
+    uv run --script tools/mcp_serial_bridge.py --port "<serial-port>"
 For an existing project environment (including Pylance), install with:
     uv pip install --python <venv-python> -r tools/requirements-mcp-serial-bridge.txt
 Keep the inline dependencies and adjacent requirements file in sync.
@@ -427,7 +427,7 @@ async def smoke_test(url):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", help="COM5 on Windows, /dev/ttyACM0 on Linux; required to start the server")
+    parser.add_argument("--port", help="Serial device path (e.g. COM3 on Windows, /dev/ttyACM0 on Linux, /dev/cu.usbmodem12345 on macOS); required to start the server")
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--timeout", type=float, default=15.0, help="Reply timeout in seconds; failed requests are never replayed")
     parser.add_argument("--http-port", type=int, default=8765, help="Local HTTP port (default: 8765)")

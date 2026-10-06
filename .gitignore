@@ -2,4 +2,7 @@
 ctest
 *.log
 build/
+output/
+Documentation/html/
+Documentation/Doxygen/c_mcp.dxy
 __pycache__/

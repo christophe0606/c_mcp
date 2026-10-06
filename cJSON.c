@@ -22,6 +22,8 @@
 
 /* cJSON */
 /* JSON parser in C. */
+/* Modified from upstream cJSON 1.7.19 for CMSIS-MCP embedded use.
+ * Numeric handling assumes finite values; see cJSON.h for the changes. */
 
 /* disable warnings about old C89 functions in MSVC */
 #if !defined(_CRT_SECURE_NO_DEPRECATE) && defined(_MSC_VER)
@@ -69,22 +71,6 @@
 #endif
 #define false ((cJSON_bool)0)
 
-/* define isnan and isinf for ANSI C, if in C99 or above, isnan and isinf has been defined in math.h */
-#ifndef isinf
-#define isinf(d) (isnan((d - d)) && !isnan(d))
-#endif
-#ifndef isnan
-#define isnan(d) (d != d)
-#endif
-
-#ifndef NAN
-#ifdef _WIN32
-#define NAN sqrt(-1.0)
-#else
-#define NAN 0.0/0.0
-#endif
-#endif
-
 typedef struct {
     const unsigned char *json;
     size_t position;
@@ -110,7 +96,7 @@ CJSON_PUBLIC(double) cJSON_GetNumberValue(const cJSON * const item)
 {
     if (!cJSON_IsNumber(item))
     {
-        return (double) NAN;
+        return 0.0;
     }
 
     return item->valuedouble;
@@ -412,7 +398,7 @@ CJSON_PUBLIC(double) cJSON_SetNumberHelper(cJSON *object, double number)
 {
     if (object == NULL)
     {
-        return (double)NAN;
+        return 0.0;
     }
 
     if (number >= INT_MAX)
@@ -608,12 +594,7 @@ static cJSON_bool print_number(const cJSON * const item, printbuffer * const out
         return false;
     }
 
-    /* This checks for NaN and Infinity */
-    if (isnan(d) || isinf(d))
-    {
-        length = sprintf((char*)number_buffer, "null");
-    }
-    else if(d == (double)item->valueint)
+    if(d == (double)item->valueint)
     {
         length = sprintf((char*)number_buffer, "%d", item->valueint);
     }

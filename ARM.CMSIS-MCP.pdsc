@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package schemaVersion="1.7.40" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
+         xs:noNamespaceSchemaLocation="https://raw.githubusercontent.com/Open-CMSIS-Pack/Open-CMSIS-Pack-Spec/v1.7.40/schema/PACK.xsd">
+  <name>CMSIS-MCP</name>
+  <description overview="overview/README.md">CMSIS MCP server for embedded application control</description>
+  <vendor>ARM</vendor>
+  <license>LICENSE.md</license>
+  <url>https://www.keil.com/pack/</url>
+  <releases>
+    <release version="0.1.0" date="2026-10-05">Initial CMSIS-Pack with the serial transport, configurable request arena and optional read-only resources.</release>
+  </releases>
+  <conditions>
+    <condition id="CMSIS Core">
+      <description>CMSIS compiler definitions for the board's weak serial I/O hooks</description>
+      <require Cclass="CMSIS" Cgroup="CORE"/>
+    </condition>
+  </conditions>
+  <csolution>
+    <clayer type="MCP-Host" path="tools" file="SerialBridge.clayer.yml" copy-to="tools/mcp"/>
+  </csolution>
+  <components>
+    <!-- Future transports will be additional variants of this component. -->
+    <component Cclass="CMSIS" Cgroup="MCP" Cvariant="Serial" Cversion="0.1.0"
+               isDefaultVariant="true" condition="CMSIS Core">
+      <description>MCP tools and read-only resources over newline-delimited serial JSON-RPC</description>
+      <files>
+        <file category="doc" name="Documentation/html/index.html"/>
+        <file category="include" name="./"/>
+        <file category="header" name="mcp.h"/>
+        <file category="header" name="serial_transport.h"/>
+        <file category="header" name="mcp_index.h"/>
+        <file category="header" name="cJSON.h"/>
+        <file category="header" attr="config" name="Config/c_mcp_config.h" version="0.1.0"/>
+        <file category="sourceC" name="mcp.c"/>
+        <file category="sourceC" name="cJSON.c"/>
+        <file category="sourceC" name="serial_transport.c"/>
+      </files>
+    </component>
+  </components>
+</package>

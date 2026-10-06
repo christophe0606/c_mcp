@@ -4,7 +4,7 @@
  */
 #ifndef serial_transport_h
 #define serial_transport_h
-#include "c_mcp_config.h"
+#include <c_mcp_config.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23,24 +23,24 @@ extern "C" {
  * dispatch() and the default sender of dispatch_with_sender() use
  * mcp_serial_send(), including when the optional input loop is disabled.
  *
- * \par Nonblocking UART integration example for a CMSIS board
- * The board-specific functions here must be supplied by the application.
+ * \par Nonblocking serial integration example for a CMSIS board
+ * Supply the board-specific functions for the chosen serial interface.
  * \code{.c}
  * #include "serial_transport.h"
- * extern int uart_try_get_byte(void); // Byte, or -1 when RX is empty.
- * extern void uart_write_and_wait(const char *text);
+ * extern int board_serial_try_get_byte(void); // Byte, or -1 when RX is empty.
+ * extern void board_serial_write_and_wait(const char *text);
  *
  * int mcp_serial_getchar(void) // Strong definition replaces the default.
  * {
- *     int byte = uart_try_get_byte();
+ *     int byte = board_serial_try_get_byte();
  *     return byte < 0 ? MCP_SERIAL_NO_DATA : byte;
  * }
  * void mcp_serial_send(const char *json, int channel)
  * {
  *     (void)channel;
  *     if (json) {
- *         uart_write_and_wait(json);
- *         uart_write_and_wait("\n"); // NDJSON framing, including send completion.
+ *         board_serial_write_and_wait(json);
+ *         board_serial_write_and_wait("\n"); // NDJSON framing, including send completion.
  *     }
  * }
  * // Register tools/resources and call mcp_prepare() first.

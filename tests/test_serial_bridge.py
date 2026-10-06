@@ -8,6 +8,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from copy import deepcopy
 import io
 import json
+import os
 from pathlib import Path
 import queue
 import socket
@@ -22,7 +23,8 @@ import uvicorn
 from mcp import ClientSession, types
 from mcp.client.streamable_http import streamable_http_client
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+# Also exercise a bridge imported from the pack into an application project.
+sys.path.insert(0, os.environ.get("CMCP_BRIDGE_DIR", str(Path(__file__).resolve().parents[1] / "tools")))
 import mcp_serial_bridge as bridge
 
 
