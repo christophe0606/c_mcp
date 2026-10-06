@@ -34,9 +34,9 @@ var NAVTREE =
         [ "Connect an AI harness", "integration.html#autotoc_md3", null ]
       ] ]
     ] ],
-    [ "License", "md__c_1_2_users_2chrfav01_2benchresults_2cmsis-executorch-hyperbolic-tiling_2third__party_2c__mcp_2_l_i_c_e_n_s_e.html", [
-      [ "Apache License, Version 2.0", "md__c_1_2_users_2chrfav01_2benchresults_2cmsis-executorch-hyperbolic-tiling_2third__party_2c__mcp_2_l_i_c_e_n_s_e.html#autotoc_md7", null ],
-      [ "cJSON exception: MIT License", "md__c_1_2_users_2chrfav01_2benchresults_2cmsis-executorch-hyperbolic-tiling_2third__party_2c__mcp_2_l_i_c_e_n_s_e.html#autotoc_md8", null ]
+    [ "License", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html", [
+      [ "Apache License, Version 2.0", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md7", null ],
+      [ "cJSON exception: MIT License", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md8", null ]
     ] ],
     [ "Topics", "topics.html", "topics" ],
     [ "Files", "files.html", [

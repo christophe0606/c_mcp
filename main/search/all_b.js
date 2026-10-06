@@ -32,5 +32,5 @@ var searchData=
   ['mcp_5ftool_5flookup_5fsteps_29',['mcp_tool_lookup_steps',['../group__cmcp__diagnostics.html#gaaefcb3af1063b6ead8a6292f584d0326',1,'mcp.h']]],
   ['memory_30',['Startup and request memory',['../group__cmcp__memory.html',1,'']]],
   ['memory_20and_20index_20diagnostics_31',['Memory and index diagnostics',['../group__cmcp__diagnostics.html',1,'']]],
-  ['mit_20license_32',['cJSON exception: MIT License',['../md__c_1_2_users_2chrfav01_2benchresults_2cmsis-executorch-hyperbolic-tiling_2third__party_2c__mcp_2_l_i_c_e_n_s_e.html#autotoc_md8',1,'']]]
+  ['mit_20license_32',['cJSON exception: MIT License',['../md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md8',1,'']]]
 ];

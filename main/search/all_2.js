@@ -15,7 +15,7 @@ var searchData=
   ['and_20request_20memory_12',['Startup and request memory',['../group__cmcp__memory.html',1,'']]],
   ['and_20third_20party_20code_13',['License and third-party code',['../index.html#autotoc_md5',1,'']]],
   ['and_20transport_14',['Request dispatch and transport',['../group__cmcp__dispatch.html',1,'']]],
-  ['apache_20license_20version_202_200_15',['Apache License, Version 2.0',['../md__c_1_2_users_2chrfav01_2benchresults_2cmsis-executorch-hyperbolic-tiling_2third__party_2c__mcp_2_l_i_c_e_n_s_e.html#autotoc_md7',1,'']]],
+  ['apache_20license_20version_202_200_15',['Apache License, Version 2.0',['../md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md7',1,'']]],
   ['argument_20types_20and_20protocol_20errors_16',['Argument types and protocol errors',['../group__cmcp__types.html',1,'']]],
   ['automate_20the_20board_20with_20bash_20and_20curl_17',['Automate the board with Bash and curl',['../automation.html',1,'']]],
   ['automation_2emd_18',['automation.md',['../automation_8md.html',1,'']]]

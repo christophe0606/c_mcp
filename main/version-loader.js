@@ -2,7 +2,8 @@
 // Load the shared version selector on the published documentation site.
 (function () {
   const script = document.currentScript;
-  if (!script || location.hostname !== "christophe0606.github.io") return;
+  if (!script || !/^https?:$/.test(location.protocol)) return;
+  if (!new URL(script.src).pathname.startsWith("/c_mcp/")) return;
   const root = new URL("../", script.src);
   const stylesheet = document.createElement("link");
   stylesheet.rel = "stylesheet";
