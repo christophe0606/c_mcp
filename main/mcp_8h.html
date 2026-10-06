@@ -115,7 +115,7 @@ $(function(){initNavTree('mcp_8h.html',''); initResizable(true); });
 
 <p>Public API for the portable C MCP server.  
 <a href="#details">More...</a></p>
-<div class="textblock"><code>#include &quot;cJSON.h&quot;</code><br />
+<div class="textblock"><code>#include &lt;stddef.h&gt;</code><br />
 <code>#include &lt;<a class="el" href="c__mcp__config_8h_source.html">c_mcp_config.h</a>&gt;</code><br />
 </div>
 <p><a href="mcp_8h_source.html">Go to the source code of this file.</a></p>
@@ -216,18 +216,6 @@ Functions</h2></td></tr>
 <tr class="memitem:ga3c12dc24ebf961ac68a22dcecc6dac36" id="r_ga3c12dc24ebf961ac68a22dcecc6dac36"><td class="memItemLeft" align="right" valign="top">struct tool *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__cmcp__tools.html#ga3c12dc24ebf961ac68a22dcecc6dac36">add_tool</a> (const char *name, const char *description)</td></tr>
 <tr class="memdesc:ga3c12dc24ebf961ac68a22dcecc6dac36"><td class="mdescLeft">&#160;</td><td class="mdescRight">Register a tool name and its client-visible description during startup.  <br /></td></tr>
 <tr class="separator:ga3c12dc24ebf961ac68a22dcecc6dac36"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gad64429043fe0f4f03c429329ed762eec" id="r_gad64429043fe0f4f03c429329ed762eec"><td class="memItemLeft" align="right" valign="top">cJSON *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__cmcp__responses.html#gad64429043fe0f4f03c429329ed762eec">ok</a> (cJSON *id, cJSON *result)</td></tr>
-<tr class="memdesc:gad64429043fe0f4f03c429329ed762eec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wrap a result in a JSON-RPC success envelope.  <br /></td></tr>
-<tr class="separator:gad64429043fe0f4f03c429329ed762eec"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga1190ff5b2e2dbcd6cc57e1cbdd5da355" id="r_ga1190ff5b2e2dbcd6cc57e1cbdd5da355"><td class="memItemLeft" align="right" valign="top">cJSON *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__cmcp__responses.html#ga1190ff5b2e2dbcd6cc57e1cbdd5da355">err</a> (cJSON *id, int code, const char *msg)</td></tr>
-<tr class="memdesc:ga1190ff5b2e2dbcd6cc57e1cbdd5da355"><td class="mdescLeft">&#160;</td><td class="mdescRight">Build a JSON-RPC error envelope.  <br /></td></tr>
-<tr class="separator:ga1190ff5b2e2dbcd6cc57e1cbdd5da355"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gad64302c847e605d845de290be040873b" id="r_gad64302c847e605d845de290be040873b"><td class="memItemLeft" align="right" valign="top">cJSON *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__cmcp__responses.html#gad64302c847e605d845de290be040873b">create_result_text</a> (const char *text)</td></tr>
-<tr class="memdesc:gad64302c847e605d845de290be040873b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Build an MCP tool result containing one text content item.  <br /></td></tr>
-<tr class="separator:gad64302c847e605d845de290be040873b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga83136b9600b5dff5ab680cfe2f90527e" id="r_ga83136b9600b5dff5ab680cfe2f90527e"><td class="memItemLeft" align="right" valign="top">cJSON *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__cmcp__responses.html#ga83136b9600b5dff5ab680cfe2f90527e">handle_tools_call</a> (cJSON *id, cJSON *params)</td></tr>
-<tr class="memdesc:ga83136b9600b5dff5ab680cfe2f90527e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Internal tools/call handler retained in the public header for compatibility.  <br /></td></tr>
-<tr class="separator:ga83136b9600b5dff5ab680cfe2f90527e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga9eadfd367105d633ae95173b28e859c8" id="r_ga9eadfd367105d633ae95173b28e859c8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__cmcp__memory.html#ga9eadfd367105d633ae95173b28e859c8">free_tools</a> (void)</td></tr>
 <tr class="memdesc:ga9eadfd367105d633ae95173b28e859c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Release tool/resource registries and cached responses; reopen registration.  <br /></td></tr>
 <tr class="separator:ga9eadfd367105d633ae95173b28e859c8"><td class="memSeparator" colspan="2">&#160;</td></tr>

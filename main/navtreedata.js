@@ -34,6 +34,7 @@ var NAVTREE =
         [ "Connect an AI harness", "integration.html#autotoc_md3", null ]
       ] ]
     ] ],
+    [ "Simple C example: setGain", "simple_example.html", null ],
     [ "License", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html", [
       [ "Apache License, Version 2.0", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md7", null ],
       [ "cJSON exception: MIT License", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md8", null ]

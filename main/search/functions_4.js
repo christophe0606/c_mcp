@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['find_5ftool_0',['find_tool',['../group__cmcp__tools.html#gacd64d97997a3e796ba04fd455a9db9b3',1,'mcp.h']]],
-  ['free_5ftools_1',['free_tools',['../group__cmcp__memory.html#ga9eadfd367105d633ae95173b28e859c8',1,'mcp.h']]]
+  ['init_5fserial_0',['init_serial',['../group__cmcp__serial.html#ga9369b0c535a8b478d58e61526c45cd6b',1,'serial_transport.h']]]
 ];

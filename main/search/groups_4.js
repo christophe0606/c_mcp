@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['helpers_0',['Low-level response helpers',['../group__cmcp__responses.html',1,'']]]
+  ['index_20diagnostics_0',['Memory and index diagnostics',['../group__cmcp__diagnostics.html',1,'']]]
 ];

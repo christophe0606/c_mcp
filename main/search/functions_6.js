@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['init_5fserial_0',['init_serial',['../group__cmcp__serial.html#ga9369b0c535a8b478d58e61526c45cd6b',1,'serial_transport.h']]]
+  ['process_5fserial_0',['process_serial',['../group__cmcp__serial.html#gae0f239053f14a78f02699157c80cb8c8',1,'serial_transport.h']]]
 ];

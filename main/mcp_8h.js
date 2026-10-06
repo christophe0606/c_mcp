@@ -18,13 +18,10 @@ var mcp_8h =
     [ "add_argument", "group__cmcp__tools.html#ga78a91db62bb4cb7ae3db471f71cc0a4c", null ],
     [ "add_resource", "group__cmcp__resources.html#ga5121df83438748bf327c11c933ba3787", null ],
     [ "add_tool", "group__cmcp__tools.html#ga3c12dc24ebf961ac68a22dcecc6dac36", null ],
-    [ "create_result_text", "group__cmcp__responses.html#gad64302c847e605d845de290be040873b", null ],
     [ "dispatch", "group__cmcp__dispatch.html#gac219573f88d81b490ed70eecd054a16f", null ],
     [ "dispatch_with_sender", "group__cmcp__dispatch.html#gaa8303437dff951e777764a4530d858ba", null ],
-    [ "err", "group__cmcp__responses.html#ga1190ff5b2e2dbcd6cc57e1cbdd5da355", null ],
     [ "find_tool", "group__cmcp__tools.html#gacd64d97997a3e796ba04fd455a9db9b3", null ],
     [ "free_tools", "group__cmcp__memory.html#ga9eadfd367105d633ae95173b28e859c8", null ],
-    [ "handle_tools_call", "group__cmcp__responses.html#ga83136b9600b5dff5ab680cfe2f90527e", null ],
     [ "mcp_arena_alloc", "group__cmcp__memory.html#ga1b994641519b8b1e68486c508a9fdebe", null ],
     [ "mcp_arena_high_water", "group__cmcp__diagnostics.html#ga7e00b1eb7d8e917b308c540dd32c586a", null ],
     [ "mcp_arena_strdup", "group__cmcp__memory.html#gac0e7ac7ec13fbea090eaad6813d18483", null ],
@@ -35,6 +32,5 @@ var mcp_8h =
     [ "mcp_resource_lookup_steps", "group__cmcp__diagnostics.html#ga920e5e403df7ba059d73ba6c2a0fcbd3", null ],
     [ "mcp_tool_index_height", "group__cmcp__diagnostics.html#ga572c92be1791779c5892a6b52e2ec488", null ],
     [ "mcp_tool_lookup_steps", "group__cmcp__diagnostics.html#gaaefcb3af1063b6ead8a6292f584d0326", null ],
-    [ "ok", "group__cmcp__responses.html#gad64429043fe0f4f03c429329ed762eec", null ],
     [ "set_tool_callback", "group__cmcp__tools.html#gac8bed8f7da12efecdf85d5065ccdd09b", null ]
 ];

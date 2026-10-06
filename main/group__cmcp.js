@@ -6,6 +6,5 @@ var group__cmcp =
     [ "Startup and request memory", "group__cmcp__memory.html", "group__cmcp__memory" ],
     [ "Request dispatch and transport", "group__cmcp__dispatch.html", "group__cmcp__dispatch" ],
     [ "Memory and index diagnostics", "group__cmcp__diagnostics.html", "group__cmcp__diagnostics" ],
-    [ "Low-level response helpers", "group__cmcp__responses.html", "group__cmcp__responses" ],
     [ "Portable serial transport", "group__cmcp__serial.html", "group__cmcp__serial" ]
 ];

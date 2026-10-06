@@ -135,7 +135,7 @@ $(function(){initNavTree('automation.html',''); initResizable(true); });
 <div class="line"> </div>
 <div class="line"># Close this HTTP session; the shared bridge stays running.</div>
 <div class="line">curl &quot;${http[@]}&quot; &quot;$url&quot; -X DELETE -o /dev/null</div>
-</div><!-- fragment --><p>Run <code>bash board-tool.sh</code> to set the gain to <code>2.0</code>. This example assumes the board firmware defines a <code>setGain</code> tool with a numeric <code>gain</code> argument; the library does not register it automatically. Change the <code>gain</code> value in the final <code>tools/call</code> message to set another gain, and adjust <code>url</code> if needed. No tool discovery is performed.</p>
+</div><!-- fragment --><p>Run <code>bash board-tool.sh</code> to set the gain to <code>2.0</code>. This example assumes the board firmware defines a <code>setGain</code> tool with a numeric <code>gain</code> argument, as in the <a class="el" href="simple_example.html">simple C example</a>; the library does not register it automatically. Change the <code>gain</code> value in the final <code>tools/call</code> message to set another gain, and adjust <code>url</code> if needed. No tool discovery is performed.</p>
 <p>The Python bridge forwards the tool call over serial and returns the board's result. The script prints the JSON response; check its <code>error</code> field or <code>result.isError</code> when using it in automated checks, since an MCP error can still have HTTP status 200. Only Bash, curl and awk are needed.</p>
 <p>After initialization, reuse the same session ID and HTTP headers to call multiple tools. Send those calls before the final <code>DELETE</code> request, which closes the session. </p>
 </div></div><!-- contents -->
