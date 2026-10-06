@@ -25,31 +25,20 @@
 var NAVTREE =
 [
   [ "CMSIS-MCP", "index.html", [
-    [ "License and third-party code", "index.html#autotoc_md5", null ],
-    [ "Automate the board with Bash and curl", "automation.html", null ],
+    [ "License and third-party code", "index.html#autotoc_md6", null ],
     [ "Integration", "integration.html", [
-      [ "Add the pack and host bridge layer", "integration.html#autotoc_md0", null ],
-      [ "Configure and integrate the firmware", "integration.html#autotoc_md1", null ],
-      [ "Run the host bridge", "integration.html#autotoc_md2", [
-        [ "Connect an AI harness", "integration.html#autotoc_md3", null ]
-      ] ]
+      [ "Add the pack and host bridge layer", "integration.html#autotoc_md2", null ],
+      [ "Configure and integrate the firmware", "integration.html#autotoc_md3", null ],
+      [ "Run the host bridge", "integration.html#autotoc_md4", null ]
     ] ],
     [ "Simple C example: setGain", "simple_example.html", null ],
-    [ "License", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html", [
-      [ "Apache License, Version 2.0", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md7", null ],
-      [ "cJSON exception: MIT License", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md8", null ]
+    [ "Automate the board", "automation.html", [
+      [ "Connect an AI harness", "automation.html#autotoc_md0", null ],
+      [ "Call tools from scripts", "automation.html#autotoc_md1", null ]
     ] ],
-    [ "Topics", "topics.html", "topics" ],
-    [ "Files", "files.html", [
-      [ "File List", "files.html", "files_dup" ],
-      [ "Globals", "globals.html", [
-        [ "All", "globals.html", null ],
-        [ "Functions", "globals_func.html", null ],
-        [ "Typedefs", "globals_type.html", null ],
-        [ "Enumerations", "globals_enum.html", null ],
-        [ "Enumerator", "globals_eval.html", null ],
-        [ "Macros", "globals_defs.html", null ]
-      ] ]
+    [ "License", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html", [
+      [ "Apache License, Version 2.0", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md8", null ],
+      [ "cJSON exception: MIT License", "md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html#autotoc_md9", null ]
     ] ]
   ] ]
 ];

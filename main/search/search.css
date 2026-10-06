@@ -1,9 +1,20 @@
 /*---------------- Search Box */
 
-#MSearchBox {
+.titlearea table {
+    width: 100%;
+}
+
+dark-mode-toggle {
     position: absolute;
     right: 5px;
+    padding-top: 3px;
 }
+
+#MSearchBox {
+    position: absolute;
+    right: 34px;
+}
+
 /*---------------- Search box styling */
 
 .SRPage * {
@@ -187,7 +198,7 @@ iframe#MSearchResults {
 
 
 #SRIndex {
-    clear:both; 
+    clear:both;
 }
 
 .SREntry {
@@ -206,7 +217,7 @@ div.SRPage {
 }
 
 .SRChildren {
-    padding-left: 3ex; padding-bottom: .5em 
+    padding-left: 3ex; padding-bottom: .5em
 }
 
 .SRPage .SRChildren {
