@@ -1,5 +1,9 @@
 # CMSIS-MCP (c_mcp)
 
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](ARM.CMSIS-MCP.pdsc)
+[![License](https://img.shields.io/badge/license-Apache--2.0%20%2F%20MIT-blue)](LICENSE.md)
+[![Host tests](https://github.com/christophe0606/c_mcp/actions/workflows/portable.yml/badge.svg?branch=main)](https://github.com/christophe0606/c_mcp/actions/workflows/portable.yml)
+
 CMSIS-MCP lets scripts and AI agents control an embedded application through
 MCP messages. It is intended for development, debugging
 and testing, rather than use in a final product. Application-level automation
@@ -183,8 +187,9 @@ instead of `CMSIS_PDSC`. Without `--no-preprocess`, `gen_pack.sh` generates
 the documentation before packing. The archive is written to
 `output/ARM.CMSIS-MCP.0.1.0.pack`.
 
-The pack workflow generates documentation and uploads the HTML and archive.
-Documentation publishing is configured separately.
+The pack workflow generates documentation and a pack archive, uploads the pack,
+and publishes the HTML to the `gh-pages` branch. The Pages workflow deploys
+the [development documentation](https://christophe0606.github.io/c_mcp/main/).
 
 Host-test instructions are in `tests/README.md` in the source checkout.
 The host-test workflow runs on Ubuntu for each push and pull request;

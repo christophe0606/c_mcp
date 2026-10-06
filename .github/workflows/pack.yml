@@ -3,10 +3,12 @@ name: Build documentation and pack
 on:
   workflow_dispatch:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
+  actions: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,9 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Same pack/documentation tooling as CMSIS-DSP. Publishing is deferred
-      # until the repository's gh-pages branch layout has been agreed.
-      - uses: Open-CMSIS-Pack/gen-pack-action@main
+      - uses: Open-CMSIS-Pack/gen-pack-action@9cab2ab138e909e93a3f051ab9a4675b52843a25
         with:
           doxygen-version: 1.13.2
           packchk-version: 1.4.1
@@ -29,12 +29,5 @@ jobs:
           doc-path: ./Documentation/html
           gen-pack-script: bash ./gen_pack.sh --no-preprocess
           gen-pack-output: ./output
-          gh-pages-branch: ''
+          gh-pages-branch: gh-pages
           pack-artifact-format: zip
-      - name: Upload documentation
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: documentation
-          path: Documentation/html/
-          if-no-files-found: error

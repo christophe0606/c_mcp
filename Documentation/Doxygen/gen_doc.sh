@@ -15,6 +15,14 @@ cd "$script_dir"
 version=$(sed -n 's/.*<release version="\([^"]*\)".*/\1/p' ../../ARM.CMSIS-MCP.pdsc | head -n 1)
 [[ -n "$version" ]] || { echo "No release version in PDSC" >&2; exit 1; }
 sed "s/{projectNumber}/$version/g" c_mcp.dxy.in > c_mcp.dxy
+# Remove only this checkout's generated HTML so obsolete pages are not shipped.
+doc_dir=$(cd -- "$script_dir/.." && pwd)
+html_dir=$(realpath -m -- "$doc_dir/html")
+[[ "$html_dir" == "$doc_dir/html" && ! -L "$doc_dir/html" ]] || {
+  echo "Unexpected documentation output directory: $html_dir" >&2; exit 1;
+}
+rm -rf -- "$html_dir"
 "${DOXYGEN:-doxygen}" c_mcp.dxy
 test -s ../html/index.html
+sed "s/{projectNumber}/$version/g" style_template/footer.js.in > ../html/footer.js
 echo "Documentation generated: $(cd ../html && pwd)/index.html"
