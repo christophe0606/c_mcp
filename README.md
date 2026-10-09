@@ -1,8 +1,8 @@
 # CMSIS-MCP (c_mcp)
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](ARM.CMSIS-MCP.pdsc)
-[![License](https://img.shields.io/badge/license-Apache--2.0%20%2F%20MIT-blue)](LICENSE.md)
-[![Host tests](https://github.com/christophe0606/c_mcp/actions/workflows/portable.yml/badge.svg?branch=main)](https://github.com/christophe0606/c_mcp/actions/workflows/portable.yml)
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/christophe0606/c_mcp?include_prereleases)](https://github.com/christophe0606/c_mcp/releases/latest) 
+[![GitHub](https://img.shields.io/github/license/christophe0606/c_mcp)](https://github.com/christophe0606/c_mcp/blob/main/LICENSE) 
+[![C Tests](https://img.shields.io/github/actions/workflow/status/christophe0606/c_mcp/portable.yaml?logo=arm&logoColor=0091bd&label=Host%20Tests)](https://github.com/christophe0606/c_mcp/actions/workflows/portable.yaml)
 
 CMSIS-MCP lets scripts and AI agents control an embedded application through
 MCP messages. It is intended for development, debugging
