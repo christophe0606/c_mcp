@@ -22,13 +22,13 @@ solution:
 
 Adjust the path relative to your csolution.
 
-To get the Python bridge, also import the pack's `MCP-Host` layer,
-`SerialBridge.clayer.yml`, with the CMSIS Solution IDE. Its proposed
-destination is `tools/mcp` in the application. Importing the layer copies
-the layer file, Python bridge, requirements file and usage guide together,
-outside RTE.
+The pack declares `SerialBridge.clayer.yml` as an `MCP-Host` layer. Its
+PDSC `copy-to="tools/mcp"` supplies the proposed destination for an IDE copy;
+adding the pack or selecting the firmware component does not copy the host
+files by itself.
 
-In the cproject, select the serial component and add the copied host layer:
+In the cproject, select the serial component, request the layer through a
+variable, and consume the connection that the pack layer provides:
 
 ```yaml
 project:
@@ -37,11 +37,29 @@ project:
       define:
         - CJSON_NESTING_LIMIT: 16
   layers:
-    - layer: ./tools/mcp/SerialBridge.clayer.yml
+    - layer: $MCP-Host-Layer$
       type: MCP-Host
+  connections:
+    - connect: MCP application
+      consumes:
+        - MCP_HOST_BRIDGE
 ```
 
-Adjust the layer path relative to the cproject.
+The `MCP_HOST_BRIDGE` connection is a matching marker for the host bridge;
+it does not add firmware code. Leave `$MCP-Host-Layer$` undefined in the
+csolution initially. With the solution active in VS Code, run
+**CMSIS: Configure Solution** from the Command Palette, select `MCP-Host`,
+choose the `tools/mcp` destination or another directory, and click **OK**.
+The IDE copies the layer file, Python bridge, requirements file and usage guide
+together outside RTE. It also writes the chosen `MCP-Host-Layer` path into
+the active target's `variables:` in the csolution.
+
+The PDSC `copy-to` destination is relative to the csolution directory.
+If using an explicit `layer:` path instead of the variable, make it relative
+to the cproject: a cproject in `MyProject/` would use
+`../tools/mcp/SerialBridge.clayer.yml` for a solution-level `tools/mcp` copy.
+If the `MCP-Host` choice is disabled, verify the matching `connections:`
+entries and the pack path, then reload VS Code after a local pack update.
 
 When updating the pack, refresh the imported layer explicitly and review
 the copied files.

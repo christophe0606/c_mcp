@@ -35,23 +35,29 @@ solution:
 
 Adjust the path relative to your csolution.
 
-To get the Python bridge, also import the pack's `MCP-Host` layer,
-`SerialBridge.clayer.yml`, with the CMSIS Solution IDE. Its proposed
-destination is `tools/mcp` in the application. Importing the layer copies
-the Python bridge, its requirements and usage guide into the project.
-
-In the cproject, select the serial component and add the copied host layer:
+To get the Python bridge, request the pack's `MCP-Host` layer in the
+cproject. The layer provides `MCP_HOST_BRIDGE`; the project must consume that
+connection to make the layer selectable:
 
 ```yaml
 project:
   components:
     - component: CMSIS:MCP&Serial
   layers:
-    - layer: ./tools/mcp/SerialBridge.clayer.yml
+    - layer: $MCP-Host-Layer$
       type: MCP-Host
+  connections:
+    - connect: MCP application
+      consumes:
+        - MCP_HOST_BRIDGE
 ```
 
-Adjust the layer path relative to the cproject. See the [host-layer guide](tools/README.md) for details.
+Leave `$MCP-Host-Layer$` undefined in the csolution initially. In VS Code,
+run **CMSIS: Configure Solution**, select `MCP-Host`, and click **OK** to copy
+the layer, Python bridge, requirements and usage guide to the proposed
+solution-level `tools/mcp` directory. The IDE then sets the layer variable
+under the active target. Selecting the firmware component alone does not copy
+the host files. See the [host-layer guide](tools/README.md) for details.
 
 The component requires `CMSIS:CORE`; select it in the application or board
 layer. Build the solution with the CMSIS Solution tooling, such as the

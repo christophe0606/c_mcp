@@ -7,7 +7,9 @@
   <license>LICENSE.md</license>
   <url>https://www.keil.com/pack/</url>
   <releases>
-    <release version="0.1.0" date="2026-10-05">Initial CMSIS-Pack with the serial transport, configurable request arena and optional read-only resources.</release>
+    <release version="0.0.0">
+      Active development ...
+    </release>
   </releases>
   <conditions>
     <condition id="CMSIS Core">
@@ -22,7 +24,7 @@
     <!-- Future transports will be additional variants of this component. -->
     <component Cclass="CMSIS" Cgroup="MCP" Cvariant="Serial" Cversion="0.1.0"
                isDefaultVariant="true" condition="CMSIS Core">
-      <description>MCP tools and read-only resources over newline-delimited serial JSON-RPC</description>
+      <description>Board automation for development purposes using MCP protocol</description>
       <files>
         <file category="doc" name="Documentation/html/index.html"/>
         <file category="include" name="./"/>

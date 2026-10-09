@@ -34,8 +34,9 @@ and cleanup. The API is grouped into:
 The host Python bridge lets clients share one serial connection through an
 HTTP MCP endpoint. The C component in this release uses serial transport.
 
-The pack's `MCP-Host` layer copies the bridge to `tools/mcp` in the application,
-outside RTE; see the [integration guide](@ref integration).
+The pack's `MCP-Host` layer can be selected when the project requests its
+`MCP_HOST_BRIDGE` connection. CMSIS Solution then copies the bridge to
+`tools/mcp` outside RTE; see the [integration guide](@ref integration).
 The [automation guide](@ref automation) explains how to connect an AI harness
 and how to call tools from scripts.
 
