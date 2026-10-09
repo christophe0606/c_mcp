@@ -27,13 +27,43 @@ jobs:
             https://raw.githubusercontent.com/Open-CMSIS-Pack/Open-CMSIS-Pack-Spec/b3f8fcf3588a396b95eea21f9a92c05f8c92e7a0/schema/PACK.xsd \
             --output PACK.xsd
           sudo install -D -m 0644 PACK.xsd /usr/local/etc/PACK.xsd
+      # Leave doc-path unset; this action commits to gh-pages even when docs are unchanged.
       - uses: Open-CMSIS-Pack/gen-pack-action@9cab2ab138e909e93a3f051ab9a4675b52843a25
         with:
           doxygen-version: 1.13.2
           packchk-version: 1.4.1
           gen-doc-script: bash ./Documentation/Doxygen/gen_doc.sh
-          doc-path: ./Documentation/html
           gen-pack-script: bash ./gen_pack.sh --no-preprocess
           gen-pack-output: ./output
-          gh-pages-branch: gh-pages
           pack-artifact-format: zip
+      - name: Archive documentation
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation
+          path: ./Documentation/html
+          retention-days: 1
+          if-no-files-found: error
+      - name: Publish documentation
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pages_dir="${RUNNER_TEMP}/c-mcp-gh-pages"
+          git fetch origin gh-pages
+          git worktree add --detach "$pages_dir" origin/gh-pages
+          rm -rf -- "$pages_dir/$GITHUB_REF_NAME"
+          mkdir -p -- "$pages_dir/$GITHUB_REF_NAME"
+          cp -a Documentation/html/. "$pages_dir/$GITHUB_REF_NAME/"
+          cd "$pages_dir"
+          ./update_versions.sh
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Documentation unchanged; skipping deployment."
+            exit 0
+          fi
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -m "Update documentation for branch ${GITHUB_REF_NAME}"
+          git push origin HEAD:gh-pages
+          gh workflow run gh-pages.yml --ref gh-pages
