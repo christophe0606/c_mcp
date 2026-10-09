@@ -40,7 +40,7 @@
   <td id="projectlogo" style="padding: 1.5em;"><a href="https://www.keil.arm.com/cmsis" target="_blank" rel="noopener"><img alt="CMSIS" src="cmsis_logo_white_small.png"/></a></td>
   <td style="padding-left: 1em; padding-bottom: 1em;padding-top: 1em;">
    <div id="projectname">CMSIS-MCP
-   &#160;<span id="projectnumber">Version 0.1.0</span>
+   &#160;<span id="projectnumber">Version 0.0.0</span>
    </div>
    <div id="projectbrief">Embedded MCP server with serial transport</div>
   </td>
@@ -134,17 +134,22 @@ Add the pack and host bridge layer</h1>
 <div class="line">    - pack: ARM::CMSIS-MCP</div>
 <div class="line">      path: ./third_party/c_mcp</div>
 </div><!-- fragment --><p>Adjust the path relative to your csolution.</p>
-<p>To get the Python bridge, also import the pack's <code>MCP-Host</code> layer, <code>SerialBridge.clayer.yml</code>, with the CMSIS Solution IDE. Its proposed destination is <code>tools/mcp</code> in the application. Importing the layer copies the layer file, Python bridge, requirements file and usage guide together, outside RTE.</p>
-<p>In the cproject, select the serial component and add the copied host layer:</p>
+<p>The pack declares <code>SerialBridge.clayer.yml</code> as an <code>MCP-Host</code> layer. Its PDSC <code>copy-to="tools/mcp"</code> supplies the proposed destination for an IDE copy; adding the pack or selecting the firmware component does not copy the host files by itself.</p>
+<p>In the cproject, select the serial component, request the layer through a variable, and consume the connection that the pack layer provides:</p>
 <div class="fragment"><div class="line">project:</div>
 <div class="line">  components:</div>
 <div class="line">    - component: CMSIS:MCP&amp;Serial</div>
 <div class="line">      define:</div>
 <div class="line">        - CJSON_NESTING_LIMIT: 16</div>
 <div class="line">  layers:</div>
-<div class="line">    - layer: ./tools/mcp/SerialBridge.clayer.yml</div>
+<div class="line">    - layer: $MCP-Host-Layer$</div>
 <div class="line">      type: MCP-Host</div>
-</div><!-- fragment --><p>Adjust the layer path relative to the cproject.</p>
+<div class="line">  connections:</div>
+<div class="line">    - connect: MCP application</div>
+<div class="line">      consumes:</div>
+<div class="line">        - MCP_HOST_BRIDGE</div>
+</div><!-- fragment --><p>The <code>MCP_HOST_BRIDGE</code> connection is a matching marker for the host bridge; it does not add firmware code. Leave <code>$MCP-Host-Layer$</code> undefined in the csolution initially. With the solution active in VS Code, run <b>CMSIS: Configure Solution</b> from the Command Palette, select <code>MCP-Host</code>, choose the <code>tools/mcp</code> destination or another directory, and click <b>OK</b>. The IDE copies the layer file, Python bridge, requirements file and usage guide together outside RTE. It also writes the chosen <code>MCP-Host-Layer</code> path into the active target's <code>variables:</code> in the csolution.</p>
+<p>The PDSC <code>copy-to</code> destination is relative to the csolution directory. If using an explicit <code>layer:</code> path instead of the variable, make it relative to the cproject: a cproject in <code>MyProject/</code> would use <code>../tools/mcp/SerialBridge.clayer.yml</code> for a solution-level <code>tools/mcp</code> copy. If the <code>MCP-Host</code> choice is disabled, verify the matching <code>connections:</code> entries and the pack path, then reload VS Code after a local pack update.</p>
 <p>When updating the pack, refresh the imported layer explicitly and review the copied files.</p>
 <p>The component requires <code>CMSIS:CORE</code>; select it in the application or board layer. Build the solution with the CMSIS Solution tooling, such as the Build action in the CMSIS Solution extension for VS Code. The selected component supplies its sources and include paths automatically.</p>
 <h1><a class="anchor" id="autotoc_md3"></a>

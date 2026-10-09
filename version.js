@@ -3,7 +3,7 @@
 // https://github.com/ARM-software/CMSIS-DSP/tree/gh-pages
 //--- list of versions ---
 const versions = {
-    "main": "0.1.0"
+    "main": "0.0.0"
 }
 //--- list of versions ---
 

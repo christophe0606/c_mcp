@@ -40,7 +40,7 @@
   <td id="projectlogo" style="padding: 1.5em;"><a href="https://www.keil.arm.com/cmsis" target="_blank" rel="noopener"><img alt="CMSIS" src="cmsis_logo_white_small.png"/></a></td>
   <td style="padding-left: 1em; padding-bottom: 1em;padding-top: 1em;">
    <div id="projectname">CMSIS-MCP
-   &#160;<span id="projectnumber">Version 0.1.0</span>
+   &#160;<span id="projectnumber">Version 0.0.0</span>
    </div>
    <div id="projectbrief">Embedded MCP server with serial transport</div>
   </td>
@@ -142,7 +142,7 @@ $(function(){initNavTree('index.html',''); initResizable(true); });
 <li><a class="el" href="group__cmcp__diagnostics.html">Diagnostic counters</a></li>
 </ul>
 <p>The host Python bridge lets clients share one serial connection through an HTTP MCP endpoint. The C component in this release uses serial transport.</p>
-<p>The pack's <code>MCP-Host</code> layer copies the bridge to <code>tools/mcp</code> in the application, outside RTE; see the <a class="el" href="integration.html">integration guide</a>. The <a class="el" href="automation.html">automation guide</a> explains how to connect an AI harness and how to call tools from scripts.</p>
+<p>The pack's <code>MCP-Host</code> layer can be selected when the project requests its <code>MCP_HOST_BRIDGE</code> connection. CMSIS Solution then copies the bridge to <code>tools/mcp</code> outside RTE; see the <a class="el" href="integration.html">integration guide</a>. The <a class="el" href="automation.html">automation guide</a> explains how to connect an AI harness and how to call tools from scripts.</p>
 <h1><a class="anchor" id="autotoc_md6"></a>
 License and third-party code</h1>
 <p>CMSIS-MCP project files are licensed under Apache-2.0. The bundled <code>cJSON.c</code> and <code>cJSON.h</code> are sourced from <a href="https://github.com/DaveGamble/cJSON">Dave Gamble's cJSON repository</a> and retain their MIT license and original copyright notices. See the pack's <a class="el" href="md__2home_2runner_2work_2c__mcp_2c__mcp_2LICENSE.html">LICENSE.md</a> for both license texts. </p>
